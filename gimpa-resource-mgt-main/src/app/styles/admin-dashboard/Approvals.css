@@ -1,0 +1,109 @@
+.approvals-container{
+    padding:20px;
+   
+}
+
+.approvals-title{
+    font-size:22px;
+    font-weight:600;
+    margin-bottom:20px;
+}
+
+.no-requests{
+    color:#666;
+}
+
+.approvals-table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+.approvals-table th{
+    text-align:left;
+    padding:12px;
+    border-bottom:2px solid #ddd;
+    font-weight:600;
+}
+
+.approvals-table td{
+    padding:12px;
+    border-bottom:1px solid #eee;
+}
+
+.approvals-table tr:hover{
+    background:#f7f7f7;
+}
+
+.action-buttons{
+    display:flex;
+    gap:10px;
+}
+
+.approve-btn{
+    background:#2ecc71;
+    border:none;
+    color:white;
+    padding:6px 14px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.approve-btn:hover{
+    background:#27ae60;
+}
+
+.deny-btn{
+    background:#e74c3c;
+    border:none;
+    color:white;
+    padding:6px 14px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.deny-btn:hover{
+    background:#c0392b;
+}
+
+/* Container for the tabs */
+.approvals-tabs-container{
+    display:flex;
+    gap:25px;
+    border-bottom:2px solid #e5e5e5;
+    margin-bottom:0;
+}
+
+/* Individual tab */
+.approvals-tab{
+    padding:10px 5px;
+    font-size:15px;
+    font-weight:500;
+    color:#6b7280;
+    cursor:pointer;
+    position:relative;
+    transition:all 0.2s ease;
+}
+
+/* Hover */
+.approvals-tab:hover{
+    color:#111827;
+}
+
+/* Active tab */
+.approvals-tab.active{
+    color:#111827;
+    font-weight:600;
+}
+
+/* Underline for active tab */
+.approvals-tab.active::after{
+    content:"";
+    position:absolute;
+    bottom:-2px;
+    left:0;
+    width:100%;
+    height:3px;
+    background:#1b59a0;
+    border-radius:2px;
+}

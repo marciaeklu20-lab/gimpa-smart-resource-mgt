@@ -1,0 +1,56 @@
+.workspace-container {
+  display: flex;
+  margin-top: 100px; 
+}
+
+/* Main content area next to sidebar */
+.workspace-main {
+  flex: 1;
+  padding: 2rem;
+  transition: margin-left 0.3s ease;
+  margin-left: 240px; 
+  min-height: calc(100vh - 100px); 
+  box-sizing: border-box;
+}
+
+.workspace-main.collapsed {
+  margin-left: 100px; 
+}
+
+/* Tabs container for Resource Management */
+.resource-management-tabs-container {
+  display: flex;
+  gap: 1rem; /* less gap to look like a button row */
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 1rem;
+  flex-wrap: wrap; 
+}
+
+/* Individual tab styling as button */
+.resource-management-tab {
+  cursor: pointer;
+  user-select: none;
+  font-size: 24px;
+  font-weight: 700;
+  color: #003366;
+  padding: 0.6rem 1.2rem; 
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-color: #e6eaf7; /* light background */
+  transition: all 0.2s ease;
+}
+
+/* Active tab */
+.resource-management-tab.active {
+  color: #facc15;
+  background-color: rgb(11, 60, 128); 
+ 
+}
+
+/* Hover effect */
+.resource-management-tab:hover {
+  background-color: #c8d1f0;
+  color: #003366;
+  border-color: #3b8ddf;
+}

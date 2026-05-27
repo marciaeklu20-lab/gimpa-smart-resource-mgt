@@ -1,0 +1,20 @@
+{
+  "name": "gimpa-resource-mgt",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "next lint --no-error-on-unmatched-pattern"
+  },
+  "dependencies": {
+    "firebase": "^12.4.0",
+    "lucide-react": "^0.546.0",
+    "next": "16.0.0",
+    "react": "19.2.0",
+    "react-datepicker": "^9.1.0",
+    "react-dom": "19.2.0",
+    "react-icons": "^5.5.0"
+  }
+}

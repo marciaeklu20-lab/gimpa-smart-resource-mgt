@@ -1,0 +1,88 @@
+
+
+/* Header container */
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(0px, 0vw, 0px) clamp(15px, 2vw, 30px);
+  background-color: var(--bg-color, #ffffff); /* follow workspace background */
+  border-bottom: 4px solid var(--header-accent, #003366); /* theme-aware border */
+  flex-wrap: nowrap;
+  gap: clamp(5px, 1vw, 10px);
+  margin-top: 0;
+  transition: background-color 0.3s, border-color 0.3s;
+  top: 0;
+  left: 0;
+  width: 100%;
+  position: fixed;
+  height: 120px;
+  z-index: 1000;
+}
+
+/* Left side: logo + title */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.3vw, 15px);
+}
+
+/* Logo */
+.header-logo {
+  width: clamp(50px, 5vw, 90px);
+  height: clamp(50px, 5vw, 90px);
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Title */
+.header-title {
+  font-size: clamp(10px, 4vw, 65px) !important;
+  color: var(--header-text, #003366); 
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 1;
+  transition: color 0.3s;
+  line-height: 1.2;
+}
+
+/* Right side content */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 1vw, 8px);
+  flex-shrink: 0;
+  margin-right: clamp(10px, 2vw, 20px);
+}
+
+/* Theme toggle button */
+.theme-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s;
+  margin-right: 20px;
+}
+
+/* Theme-aware colors for icon */
+.theme-toggle-btn.light {
+  color: #003366; 
+}
+
+.theme-toggle-btn.dark {
+  color: #ffffff; /* white on dark mode */
+}
+
+/* Optional: header border color variables */
+:root {
+  --header-accent: #003366; /* light mode default border */
+  --header-text: #003366;   /* light mode default text */
+}
+
+body.dark-theme {
+  --header-accent: #ffffff; /* dark mode border */
+  --header-text: #ffffff;   /* dark mode text */
+}

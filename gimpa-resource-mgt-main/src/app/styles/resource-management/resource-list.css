@@ -1,0 +1,173 @@
+.resource-section {
+  width: 100%;
+  margin-top: 35px;
+}
+
+.resource-table-wrapper {
+  width: 100%;
+
+  overflow-x: auto;
+
+  background: #ffffff;
+
+  border-radius: 22px;
+
+  border: 2px solid #dbeafe;
+
+  box-shadow:
+    0 12px 32px rgba(0, 51, 102, 0.08);
+}
+
+.resource-table {
+  width: 100%;
+
+  min-width: 1150px;
+
+  border-collapse: collapse;
+
+  table-layout: fixed;
+}
+
+.resource-table thead tr {
+  background:
+    linear-gradient(
+      135deg,
+      #003366,
+      #00509d
+    );
+}
+
+.resource-table thead th {
+  padding: 22px 18px;
+
+  color: #ffffff;
+
+  font-size: 0.95rem;
+  font-weight: 700;
+
+  text-align: left;
+
+  letter-spacing: 0.3px;
+
+  border-right:
+    1px solid rgba(255, 255, 255, 0.15);
+
+  border-bottom:
+    2px solid #00264d;
+}
+
+.resource-table thead th:last-child {
+  border-right: none;
+}
+
+.resource-table tbody tr {
+  transition:
+    background 0.2s ease;
+}
+
+.resource-table tbody tr:nth-child(even) {
+  background: #f8fbff;
+}
+
+.resource-table tbody tr:hover {
+  background: #edf5ff;
+}
+
+.resource-table tbody td {
+  padding: 18px;
+
+  color: #1e293b;
+
+  font-size: 0.94rem;
+  font-weight: 500;
+
+  line-height: 1.5;
+
+  border-right:
+    1px solid #dbeafe;
+
+  border-bottom:
+    1px solid #dbeafe;
+
+  vertical-align: middle;
+
+  word-wrap: break-word;
+}
+
+.resource-table tbody td:last-child {
+  border-right: none;
+}
+
+.resource-name {
+  color: #003366 !important;
+
+  font-weight: 700 !important;
+}
+
+.book-resource-btn {
+  border: none;
+  outline: none;
+
+  background:
+    linear-gradient(
+      135deg,
+      #003366,
+      #00509d
+    );
+
+  color: #ffffff;
+
+  padding: 12px 18px;
+
+  border-radius: 12px;
+
+  font-size: 0.9rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.book-resource-btn:hover {
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 10px 22px rgba(0, 80, 157, 0.24);
+}
+
+.book-resource-btn:active {
+  transform: scale(0.98);
+}
+
+.no-resources {
+  padding: 55px !important;
+
+  text-align: center;
+
+  color: #64748b;
+
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+
+  .resource-table-wrapper {
+    border-radius: 18px;
+  }
+
+  .resource-table thead th,
+  .resource-table tbody td {
+    padding: 16px;
+  }
+
+  .book-resource-btn {
+    width: 100%;
+  }
+
+}

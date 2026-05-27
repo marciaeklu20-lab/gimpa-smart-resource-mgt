@@ -1,0 +1,84 @@
+/* Define header height once */
+:root {
+  --header-height: 100px; 
+}
+
+.sidebar-container {
+  background: rgba(67, 109, 182, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #003366;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 1rem;
+  position: fixed;
+  top: var(--header-height); 
+  left: 0;
+  margin-top: 10px;
+  height: calc(100vh - var(--header-height)); 
+  width: 240px;
+  border-right: 1px solid #0b2249;
+  transition: width 0.3s ease;
+  z-index: 900; 
+}
+
+/* Collapsed state */
+.sidebar-container.collapsed {
+  width: 60px;
+}
+
+/* Collapse / Toggle button */
+.sidebar-toggle-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 2rem;
+  color: #003366;
+}
+
+/* Navigation list */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Sidebar items */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  color: #003366;
+}
+
+.sidebar-item:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.sidebar-item.active {
+  background-color: rgba(11, 60, 128, 0.7);
+  color: white;
+}
+
+/* Icon */
+.sidebar-icon {
+  display: flex;
+  align-items: center;
+}
+
+/* Text */
+.sidebar-text {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Hide text when collapsed */
+.sidebar-container.collapsed .sidebar-text {
+  display: none;
+}
