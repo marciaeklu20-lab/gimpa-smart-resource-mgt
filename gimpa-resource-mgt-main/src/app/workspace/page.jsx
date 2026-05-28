@@ -10,6 +10,7 @@ import Approvals from "@/app/workspace/admin-dashboard/Approvals";
 import Sidebar from "@/app/components/Sidebar";
 import Header from "@/app/components/Header";
 import CampusResource from "@/app/workspace/resource-management/campus-resource";
+import BookingRequests from "@/app/workspace/resource-management/BookingRequests";
 import Users from "@/app/workspace/admin-dashboard/Users";
 
 import "@/app/styles/workspace/workspace.css";
@@ -109,8 +110,12 @@ export default function WorkspacePage() {
           )}
 
           {activeSidebar === "Resource Management" && activeTab === "Campus Resources" && (
-  <CampusResource userRole={userRole} />
-)}
+            <CampusResource userRole={userRole} />
+          )}
+
+          {activeSidebar === "Resource Management" && activeTab === "Bookings" && (
+            <BookingRequests />
+          )}
 
        
           {/* ADMIN DASHBOARD TABS */}

@@ -1,6 +1,7 @@
-
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAnalytics, isSupported } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyClbUffHpArzKIDlrW9W3VGFvg790NANqI",
@@ -15,6 +16,9 @@ const firebaseConfig = {
 // Prevent duplicate Firebase initialization (fixes Next.js Fast Refresh issue)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 // Initialize Analytics safely (only in browser)
 if (typeof window !== "undefined") {
   isSupported().then((supported) => {
@@ -27,4 +31,5 @@ if (typeof window !== "undefined") {
   });
 }
 
+export { app, auth, db };
 export default app;

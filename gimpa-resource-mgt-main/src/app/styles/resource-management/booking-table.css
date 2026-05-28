@@ -1,0 +1,91 @@
+.booking-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+
+  background: #ffffff;
+
+  border: 2px solid #dbeafe;
+  border-radius: 18px;
+
+  box-shadow: 0 8px 24px rgba(0, 51, 102, 0.06);
+
+  padding: 8px;
+}
+
+.booking-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  font-size: 0.92rem;
+  color: #1e293b;
+}
+
+.booking-table thead th {
+  text-align: left;
+  font-weight: 700;
+
+  color: #003366;
+  background: #f1f6ff;
+
+  padding: 14px 16px;
+
+  border-bottom: 2px solid #dbeafe;
+
+  position: sticky;
+  top: 0;
+}
+
+.booking-table tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef4ff;
+  vertical-align: top;
+}
+
+.booking-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.booking-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.booking-table .approve-btn,
+.booking-table .reject-btn {
+  border: none;
+  outline: none;
+
+  padding: 8px 14px;
+  border-radius: 10px;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.booking-table .approve-btn {
+  background: linear-gradient(135deg, #047857, #059669);
+  color: #ffffff;
+}
+
+.booking-table .reject-btn {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  color: #ffffff;
+}
+
+.booking-table .approve-btn:hover,
+.booking-table .reject-btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+@media (max-width: 768px) {
+  .booking-table thead th,
+  .booking-table tbody td {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+}

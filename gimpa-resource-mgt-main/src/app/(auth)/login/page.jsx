@@ -46,7 +46,7 @@ export default function LoginPage() {
       const { getAuth, signInWithEmailAndPassword } = await import("firebase/auth");
 
       // Import our pre-initialized Firebase auth instance
-      const { auth } = await import("@/firebaseConfig");
+      const { auth } = await import("@/firebase/config");
 
       // Attempt to sign in with Firebase
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
