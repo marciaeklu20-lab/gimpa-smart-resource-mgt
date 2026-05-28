@@ -137,9 +137,19 @@ export default function BookingForm({
 
       console.error(error);
 
-      alert(
-        "Failed to submit booking"
-      );
+      if (error.message === "BOOKING_CONFLICT") {
+        alert(
+          "This resource is already booked for the selected time. Please pick a different slot."
+        );
+      } else if (error.message === "INVALID_DATE_RANGE") {
+        alert(
+          "End time must be after start time."
+        );
+      } else {
+        alert(
+          "Failed to submit booking"
+        );
+      }
 
     } finally {
 

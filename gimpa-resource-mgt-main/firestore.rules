@@ -1,0 +1,161 @@
+rules_version = '2';
+
+// GIMPA Resource Manager Firestore rules.
+//
+// The client app trusts the user doc for role/approval state, so these
+// rules must enforce the SAME shape the UI gates on:
+//   - users/{uid}.role           : string
+//   - users/{uid}.approved       : bool
+//   - users/{uid}.department     : string | null
+//
+// All collection-scoped helpers below read the requester's user doc.
+// Keep them in sync with src/app/components/Sidebar.jsx (adminRoles)
+// and src/app/workspace/resource-management/services/permissions.js.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userExists() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function myRole() {
+      return userExists() ? userDoc().role : null;
+    }
+
+    function isApproved() {
+      return userExists() && userDoc().approved == true;
+    }
+
+    function isAdmin() {
+      return myRole() in [
+        "super_admin",
+        "Secretariat Admin",
+        "IT Officer"
+      ];
+    }
+
+    function isOperationalApprover() {
+      return myRole() in [
+        "Facility/Estate Officer",
+        "Stores/Inventory Officer",
+        "Receptionist"
+      ];
+    }
+
+    function isGlobalApprover() {
+      return myRole() in [
+        "Administrative Officer",
+        "Higher Level Management",
+        "super_admin"
+      ];
+    }
+
+    function cannotBook() {
+      return myRole() == "General Student";
+    }
+
+    // ---------------------------------------------------------------
+    // users/{uid}
+    //
+    // Anyone signed in can create their own doc at signup. After that,
+    // only the user themselves or an admin can read/update it. No one
+    // can promote themselves to a privileged role.
+    // ---------------------------------------------------------------
+    match /users/{uid} {
+
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid || isAdmin()
+      );
+
+      // Self-create at signup. We can't read the user doc here (it
+      // doesn't exist yet), so we trust the email-derived defaults
+      // and reject anyone trying to seed themselves as approved+admin.
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && !(request.resource.data.role in [
+          "super_admin",
+          "Secretariat Admin",
+          "IT Officer"
+        ] && request.resource.data.approved == true);
+
+      // Self-update: user can edit profile fields but cannot change
+      // their own role or approval state.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == uid
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.approved == resource.data.approved)
+        || isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // resources/{assetCode}
+    //
+    // Any approved user can list resources to book them. Only admins
+    // (or the dedicated stores/facility officers) can create or edit.
+    // ---------------------------------------------------------------
+    match /resources/{assetCode} {
+
+      allow read: if isApproved();
+
+      allow create, update, delete: if isApproved() && (
+        isAdmin() || isOperationalApprover()
+      );
+    }
+
+    // ---------------------------------------------------------------
+    // bookings/{bookingId}
+    //
+    // Create:  approved user who is allowed to book, requesterId must
+    //          match auth uid, status must be "pending".
+    // Read:    requester, anyone whose role is in visibleToRoles, or
+    //          an admin / global approver.
+    // Update:  admin, global approver, or anyone whose role is in
+    //          visibleToRoles — and only to flip status to approved
+    //          or rejected (with the matching audit field set).
+    // Delete:  admin only.
+    // ---------------------------------------------------------------
+    match /bookings/{bookingId} {
+
+      allow create: if isApproved()
+        && !cannotBook()
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.status == "pending";
+
+      allow read: if isApproved() && (
+        resource.data.requesterId == request.auth.uid
+        || myRole() in resource.data.visibleToRoles
+        || isAdmin()
+        || isGlobalApprover()
+      );
+
+      allow update: if isApproved()
+        && (
+          isAdmin()
+          || isGlobalApprover()
+          || myRole() in resource.data.visibleToRoles
+        )
+        && request.resource.data.status in ["approved", "rejected"]
+        && resource.data.status == "pending";
+
+      allow delete: if isAdmin();
+    }
+  }
+}

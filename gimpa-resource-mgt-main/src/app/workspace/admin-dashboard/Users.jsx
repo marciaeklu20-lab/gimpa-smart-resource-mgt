@@ -11,6 +11,10 @@ getDocs
 import app from "@/firebase/config";
 
 import { IoMdSearch } from "react-icons/io";
+import {
+departments as gimpaDepartments,
+CENTRAL_ADMIN_LABEL
+} from "@/app/constants/departments";
 import "@/app/styles/admin-dashboard/Users.css";
 
 export default function Users(){
@@ -53,7 +57,7 @@ let results = users;
 // department filter
 if(selectedDepartment !== "All"){
 
-if(selectedDepartment === "Central Administration"){
+if(selectedDepartment === CENTRAL_ADMIN_LABEL){
 results = results.filter(user => !user.department);
 }else{
 results = results.filter(user => user.department === selectedDepartment);
@@ -81,16 +85,12 @@ setFilteredUsers(results);
 
 },[search,selectedDepartment,users]);
 
-// get unique departments
-// fixed departments list
+// Filter options: "All" + the canonical GIMPA departments + the
+// Central Administration bucket for users with no department.
 const departments = [
 "All",
-"School of Technology",
-"Law School",
-"Business School",
-"School of Public Service and Governance",
-"School Of Research And Graduate Studies",
-"Central Administration"
+...gimpaDepartments,
+CENTRAL_ADMIN_LABEL
 ];
 
 return(
@@ -152,7 +152,7 @@ onChange={(e)=>setSelectedDepartment(e.target.value)}
 <td>{user.fullName}</td>
 <td>{user.email}</td>
 <td>{user.role}</td>
-<td>{user.department || "Central Administration"}</td>
+<td>{user.department || CENTRAL_ADMIN_LABEL}</td>
 
 </tr>
 ))}

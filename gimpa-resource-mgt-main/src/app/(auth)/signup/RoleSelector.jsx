@@ -1,23 +1,17 @@
 "use client";
 
 import "@/app/styles/auth/signup.css";
+import { departments } from "@/app/constants/departments";
 
-export default function RoleSelector({ 
+export default function RoleSelector({
   roleType, // "student" or "staff"
-  studentType, 
-  setStudentType, 
-  position, 
-  setPosition, 
-  department, 
-  setDepartment 
+  studentType,
+  setStudentType,
+  position,
+  setPosition,
+  department,
+  setDepartment
 }) {
-  const departments = [
-    "Scool Of Technology And Social Sciences",
-    "GIMPA Law School",
-    "Business School",
-    "School Of Public Service And Governance",
-    "School Of Research And Graduate Studies"
-  ];
 
   const studentRoles = [
     { value: "General Student", label: "General Student" },

@@ -121,6 +121,12 @@ export default function SignupPage() {
       if (error.message === "INVALID_EMAIL_DOMAIN") {
         setMessage("Please use a valid GIMPA email.");
       }
+      else if (error.message === "MISSING_ROLE") {
+        setMessage("Please select a role before signing up.");
+      }
+      else if (error.message === "MISSING_DEPARTMENT") {
+        setMessage("Please select a department for this role.");
+      }
       else if (error.code === "auth/email-already-in-use") {
         setMessage("This email is already registered.");
       }

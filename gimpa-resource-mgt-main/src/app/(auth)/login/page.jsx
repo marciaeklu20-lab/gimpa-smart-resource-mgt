@@ -17,12 +17,17 @@ export default function LoginPage() {
   const [message, setMessage] = useState(""); // stores user-friendly messages (success/error)
   const [loading, setLoading] = useState(false); // loading state for login button
 
-  // Function to detect user role based on email domain
-  const getUserRoleByEmail = (email) => {
-    if (email.endsWith("@st.gimpa.edu.gh")) return "student";
-    if (email.endsWith("@gimpa.edu.gh")) return "lecturer";
-    if (email.endsWith("@gimpa.edu.gh") || email.endsWith("@gmail.com")) return "admin";
-    return null; // invalid email
+  // Allow only institutional GIMPA emails plus the super-admin allowlist
+  // (kept in sync with SUPER_ADMIN_EMAIL in src/app/(auth)/signup/signupUser.js).
+  // The actual role is read from Firestore after auth — we never trust
+  // the email to assign a role.
+  const SUPER_ADMIN_EMAIL = "marcia.ea.geal@gmail.com";
+
+  const isInstitutionalEmail = (email) => {
+    if (email === SUPER_ADMIN_EMAIL) return true;
+    if (email.endsWith("@st.gimpa.edu.gh")) return true;
+    if (email.endsWith("@gimpa.edu.gh")) return true;
+    return false;
   };
 
   // Function to handle login submission
@@ -31,12 +36,10 @@ export default function LoginPage() {
     setMessage(""); // clear previous messages
     setLoading(true); // start loading
 
-    // Detect role from email
-    const roleFromEmail = getUserRoleByEmail(email);
-
-    // If email domain is invalid, show message and stop
-    if (!roleFromEmail) {
-      setMessage("Only institutional or admin emails are allowed.");
+    // Reject any email not on the institutional allowlist before
+    // calling Firebase Auth — saves a round-trip and gives a clear message.
+    if (!isInstitutionalEmail(email)) {
+      setMessage("Only institutional GIMPA emails are allowed.");
       setLoading(false);
       return;
     }

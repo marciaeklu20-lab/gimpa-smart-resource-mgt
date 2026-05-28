@@ -5,6 +5,7 @@ import React, { useContext } from "react";
 import Image from "next/image";
 import { LuContrast } from "react-icons/lu";
 import { ThemeContext } from "@/app/context/ThemeContext";
+import LogoutButton from "@/app/components/LogoutButton";
 import "@/app/styles/components/header.css";
 
 export default function Header({ title = "GIMPA RESOURCE MANAGEMENT", rightContent }) {
@@ -33,6 +34,7 @@ export default function Header({ title = "GIMPA RESOURCE MANAGEMENT", rightConte
         >
           <LuContrast size={24} />
         </button>
+        <LogoutButton />
         {rightContent && <div className="header-extra">{rightContent}</div>}
       </div>
     </header>

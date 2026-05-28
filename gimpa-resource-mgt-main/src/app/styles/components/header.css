@@ -76,6 +76,32 @@
   color: #ffffff; /* white on dark mode */
 }
 
+/* Logout button */
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--header-accent, #003366);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--header-text, #003366);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.logout-btn:hover:not(:disabled) {
+  background-color: var(--header-accent, #003366);
+  color: var(--bg-color, #ffffff);
+}
+
+.logout-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Optional: header border color variables */
 :root {
   --header-accent: #003366; /* light mode default border */
