@@ -141,9 +141,9 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="login-container">
+    <div className="signup-container">
 
-      <div className="login-form">
+      <div className="signup-form">
 
         <img
           src="/images/gimpa-logo.png"
@@ -153,9 +153,9 @@ export default function SignupPage() {
           height={140}
         />
 
-        <h1 className="login-heading">GRM</h1>
+        <h1 className="signup-heading">GRM</h1>
 
-        <p className="login-tagline">
+        <p className="signup-tagline">
           Welcome to GIMPA Resource Manager
         </p>
 
@@ -190,7 +190,7 @@ export default function SignupPage() {
               required
             />
 
-            <span onClick={()=>setShowPassword(!showPassword)}>
+            <span className="show-password-toggle" onClick={()=>setShowPassword(!showPassword)}>
               {showPassword ? <EyeOff/> : <Eye/>}
             </span>
 
@@ -207,7 +207,7 @@ export default function SignupPage() {
               required
             />
 
-            <span onClick={()=>setShowConfirmPassword(!showConfirmPassword)}>
+            <span className="show-password-toggle" onClick={()=>setShowConfirmPassword(!showConfirmPassword)}>
               {showConfirmPassword ? <EyeOff/> : <Eye/>}
             </span>
 
@@ -288,7 +288,7 @@ export default function SignupPage() {
 
         </form>
 
-        {message && <p className="login-message">{message}</p>}
+        {message && <p className="signup-message">{message}</p>}
 
       </div>
 
