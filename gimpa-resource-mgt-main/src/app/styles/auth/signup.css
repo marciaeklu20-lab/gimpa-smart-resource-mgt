@@ -222,3 +222,30 @@ button:disabled {
   opacity: 0.6;
 }
 
+/* Success / awaiting-approval card (replaces form after submit) */
+.signup-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+}
+
+.signup-success-icon {
+  color: #fff;
+  margin-bottom: 0.75rem;
+}
+
+.signup-success-heading {
+  color: #fff;
+  font-size: 1.5rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.signup-success-body {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+

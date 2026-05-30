@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import "@/app/styles/auth/login.css";
-import { Eye, EyeOff } from "lucide-react";
+import "@/app/styles/auth/signup.css";
+import { Eye, EyeOff, CheckCircle2, Clock } from "lucide-react";
 import RoleSelector from "./RoleSelector";
 import { signupUser } from "./signupUser";
 
@@ -35,6 +35,10 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [message, setMessage] = useState("");
+
+  // When set, render the success/pending card instead of the form.
+  // Shape: { approved: boolean } | null
+  const [submitted, setSubmitted] = useState(null);
 
   // -----------------------------
   // Signup Handler
@@ -82,37 +86,9 @@ export default function SignupPage() {
 
       console.log("Signup function returned:", result);
 
-      // -----------------------------
-      // Success messages
-      // -----------------------------
-      if (result.approved) {
-
-        console.log("🎉 Account approved immediately");
-
-        setMessage(
-          "Signup successful! Your account is active. Redirecting to login..."
-        );
-
-      } else {
-
-        console.log("⏳ Account requires admin approval");
-
-        setMessage(
-          "Signup successful! Your account is awaiting admin approval. Redirecting to login..."
-        );
-
-      }
-
-      // -----------------------------
-      // Redirect to login
-      // -----------------------------
-      setTimeout(() => {
-
-        console.log("➡ Redirecting user to login page");
-
-        router.push("/login");
-
-      }, 2500);
+      // Swap form for the success / approval-pending card. No auto-
+      // redirect — user clicks "Go to Login" when ready.
+      setSubmitted({ approved: result.approved });
 
     } catch (error) {
 
@@ -159,6 +135,36 @@ export default function SignupPage() {
           Welcome to GIMPA Resource Manager
         </p>
 
+        {submitted ? (
+          <div className="signup-success">
+
+            <div className="signup-success-icon">
+              {submitted.approved ? (
+                <CheckCircle2 size={72} strokeWidth={1.5} />
+              ) : (
+                <Clock size={72} strokeWidth={1.5} />
+              )}
+            </div>
+
+            <h2 className="signup-success-heading">
+              {submitted.approved ? "Account Created" : "Awaiting Approval"}
+            </h2>
+
+            <p className="signup-success-body">
+              {submitted.approved
+                ? "Your account is active. You can now log in."
+                : "An administrator will review your request shortly. You'll be able to log in once your account is approved."}
+            </p>
+
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+            >
+              Go to Login
+            </button>
+
+          </div>
+        ) : (
         <form onSubmit={handleSignup}>
 
           {/* Full Name */}
@@ -287,8 +293,11 @@ export default function SignupPage() {
           </button>
 
         </form>
+        )}
 
-        {message && <p className="signup-message">{message}</p>}
+        {!submitted && message && (
+          <p className="signup-message">{message}</p>
+        )}
 
       </div>
 
