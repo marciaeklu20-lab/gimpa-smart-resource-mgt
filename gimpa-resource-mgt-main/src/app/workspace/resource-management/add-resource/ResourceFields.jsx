@@ -38,6 +38,7 @@ export default function ResourceFields({
           placeholder="Projector"
           value={resourceName}
           onChange={(e) => setResourceName(e.target.value)}
+          required
         />
       </div>
 

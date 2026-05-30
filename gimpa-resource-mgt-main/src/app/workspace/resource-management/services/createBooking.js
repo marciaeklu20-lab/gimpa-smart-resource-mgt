@@ -69,7 +69,7 @@ export const createBooking = async ({
   await addDoc(collection(db, "bookings"), {
 
     resourceId: resource.assetCode,
-    resourceName: resource.resourceName,
+    resourceName: resource.resourceName || `${resource.category} (${resource.assetCode})`,
 
     requesterId: user.uid,
     requesterName: user.fullName,

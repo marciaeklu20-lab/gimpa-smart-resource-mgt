@@ -185,6 +185,11 @@ export default function AddResourceForm({ closeModal }) {
     return;
   }
 
+  if (!resourceName || !resourceName.trim()) {
+    alert("Resource name is required.");
+    return;
+  }
+
   try {
     await setDoc(doc(db, "resources", assetCode), {
       assetCode,
