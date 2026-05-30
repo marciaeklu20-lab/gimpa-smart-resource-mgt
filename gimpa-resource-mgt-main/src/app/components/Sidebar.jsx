@@ -2,8 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { getAuth } from "firebase/auth";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  onSnapshot
+} from "firebase/firestore";
 import app from "@/firebase/config";
+
+// Admin-level roles that should see the pending-approvals badge.
+// Mirrors fetchBookings.js ADMIN_ROLES / firestore.rules isAdmin() ∪
+// isGlobalApprover().
+const ADMIN_ROLES = [
+  "super_admin",
+  "Secretariat Admin",
+  "IT Officer",
+  "Administrative Officer",
+  "Higher Level Management"
+];
 
 import { MdOutlineDashboard } from "react-icons/md";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
@@ -16,6 +35,7 @@ import "@/app/styles/components/sidebar.css";
 export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab }) {
 
   const [role, setRole] = useState(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const auth = getAuth(app);
   const firestore = getFirestore(app);
@@ -38,6 +58,28 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
     fetchUserRole();
 
   }, []);
+
+  // Live count of users awaiting admin approval. Subscribed only for
+  // admin-level viewers; torn down on unmount or role change.
+  useEffect(() => {
+
+    if (!role || !ADMIN_ROLES.includes(role)) {
+      setPendingCount(0);
+      return;
+    }
+
+    const q = query(
+      collection(firestore, "users"),
+      where("needsApproval", "==", true)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingCount(snapshot.size);
+    });
+
+    return unsubscribe;
+
+  }, [role]);
 
   // roles that should see admin dashboard
   const adminRoles = ["super_admin", "Secretariat Admin", "IT Officer"];
@@ -84,6 +126,10 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
             {!collapsed && (
               <span className="sidebar-text">{feature.name}</span>
+            )}
+
+            {feature.name === "Admin Dashboard" && pendingCount > 0 && (
+              <span className="sidebar-badge">{pendingCount}</span>
             )}
 
           </div>

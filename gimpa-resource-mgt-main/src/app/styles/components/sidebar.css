@@ -46,6 +46,7 @@
 
 /* Sidebar items */
 .sidebar-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -81,4 +82,33 @@
 /* Hide text when collapsed */
 .sidebar-container.collapsed .sidebar-text {
   display: none;
+}
+
+/* Pending-approvals badge (live count) */
+.sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 7px;
+  background-color: #d93025;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 10px;
+}
+
+/* When collapsed, float the badge over the icon's top-right corner */
+.sidebar-container.collapsed .sidebar-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin-left: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  font-size: 10px;
 }
