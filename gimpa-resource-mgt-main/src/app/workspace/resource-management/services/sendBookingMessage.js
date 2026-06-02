@@ -1,7 +1,8 @@
 import {
   getFirestore,
   collection,
-  addDoc,
+  doc,
+  writeBatch,
   serverTimestamp
 } from "firebase/firestore";
 
@@ -36,15 +37,36 @@ export const sendBookingMessage = async ({
     throw new Error("MESSAGE_TOO_LONG");
   }
 
-  await addDoc(
-    collection(db, "bookings", bookingId, "messages"),
+  // Single atomic batch:
+  //   - create the message doc, AND
+  //   - stamp the parent booking with latest-message metadata so list
+  //     UIs (BookingTable, Sidebar) can surface unread indicators
+  //     without scanning the subcollection.
+  // The sender's lastReadByUser is also bumped — they have implicitly
+  // "read" what they just wrote.
+  const batch = writeBatch(db);
+
+  const messageRef = doc(
+    collection(db, "bookings", bookingId, "messages")
+  );
+
+  batch.set(messageRef, {
+    text: trimmed,
+    authorId: user.uid,
+    authorName: user.fullName || user.email || "Unknown",
+    authorRole: user.role || "Unknown",
+    createdAt: serverTimestamp()
+  });
+
+  batch.update(
+    doc(db, "bookings", bookingId),
     {
-      text: trimmed,
-      authorId: user.uid,
-      authorName: user.fullName || user.email || "Unknown",
-      authorRole: user.role || "Unknown",
-      createdAt: serverTimestamp()
+      lastMessageAt: serverTimestamp(),
+      lastMessageAuthorId: user.uid,
+      [`lastReadByUser.${user.uid}`]: serverTimestamp()
     }
   );
+
+  await batch.commit();
 
 };

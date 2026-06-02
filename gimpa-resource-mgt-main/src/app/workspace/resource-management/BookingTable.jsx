@@ -10,6 +10,8 @@ import {
   rejectBooking
 } from "./services/rejectBooking";
 
+import { isUnread } from "./services/isUnread";
+
 import BookingChat from "./BookingChat";
 
 import "@/app/styles/resource-management/booking-table.css";
@@ -32,16 +34,17 @@ const formatDateRange = (start, end) => {
 
 export default function BookingTable({
   bookings,
-  currentUser,
-  refreshBookings
+  currentUser
 }) {
 
   const [expandedId, setExpandedId] = useState(null);
 
+  // refreshBookings is no longer needed — the parent now subscribes via
+  // subscribeBookings(), so any status change picks up automatically
+  // from the Firestore push.
   const handleApprove = async (bookingId) => {
     try {
       await approveBooking(bookingId, currentUser);
-      refreshBookings();
     } catch (error) {
       console.error(error);
     }
@@ -50,7 +53,6 @@ export default function BookingTable({
   const handleReject = async (bookingId) => {
     try {
       await rejectBooking(bookingId, currentUser);
-      refreshBookings();
     } catch (error) {
       console.error(error);
     }
@@ -107,7 +109,14 @@ export default function BookingTable({
                   onClick={(e) => toggleExpanded(booking, e)}
                 >
 
-                  <td>{booking.resourceName}</td>
+                  <td>
+                    {booking.resourceName}
+                    {isUnread(booking, currentUser) && (
+                      <span className="booking-row-unread-badge">
+                        NEW
+                      </span>
+                    )}
+                  </td>
                   <td>{booking.requesterName}</td>
                   <td>{booking.requesterRole}</td>
                   <td>{booking.requesterDepartment || "-"}</td>

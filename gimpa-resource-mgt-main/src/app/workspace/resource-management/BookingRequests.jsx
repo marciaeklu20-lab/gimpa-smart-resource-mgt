@@ -1,90 +1,51 @@
 "use client";
 
-import {
-  useEffect,
-  useState
-} from "react";
+import { useEffect, useState } from "react";
 
-import {
-  getAuth
-} from "firebase/auth";
-
-import {
-  getFirestore,
-  doc,
-  getDoc
-} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
 
 import app from "@/firebase/config";
 
-import {
-  fetchBookings
-} from "./services/fetchBookings";
+import { subscribeBookings } from "./services/subscribeBookings";
 
 import BookingTable from "./BookingTable";
 
 export default function BookingRequests() {
 
   const auth = getAuth(app);
-
   const db = getFirestore(app);
 
-  const [bookings, setBookings] =
-    useState([]);
-
-  const [currentUser, setCurrentUser] =
-    useState(null);
-
-  const loadBookings = async (
-    userData
-  ) => {
-
-    const data =
-      await fetchBookings(
-        userData
-      );
-
-    setBookings(data);
-
-  };
+  const [bookings, setBookings] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
+
+    let unsubscribe = null;
 
     const loadUser = async () => {
 
       try {
 
-        const firebaseUser =
-          auth.currentUser;
+        const firebaseUser = auth.currentUser;
+        if (!firebaseUser) return;
 
-        if (!firebaseUser) {
-          return;
-        }
-
-        const userDoc =
-          await getDoc(
-            doc(
-              db,
-              "users",
-              firebaseUser.uid
-            )
-          );
-
-        if (!userDoc.exists()) {
-          return;
-        }
+        const userDoc = await getDoc(
+          doc(db, "users", firebaseUser.uid)
+        );
+        if (!userDoc.exists()) return;
 
         const userData = {
-
           uid: firebaseUser.uid,
-
           ...userDoc.data()
-
         };
 
         setCurrentUser(userData);
 
-        await loadBookings(userData);
+        unsubscribe = subscribeBookings({
+          user: userData,
+          onUpdate: setBookings
+        });
 
       } catch (error) {
 
@@ -96,6 +57,10 @@ export default function BookingRequests() {
 
     loadUser();
 
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+
   }, []);
 
   if (!currentUser) {
@@ -103,15 +68,10 @@ export default function BookingRequests() {
   }
 
   return (
-
     <BookingTable
       bookings={bookings}
       currentUser={currentUser}
-      refreshBookings={() =>
-        loadBookings(currentUser)
-      }
     />
-
   );
 
 }

@@ -2,10 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import {
+  getFirestore,
+  doc,
+  updateDoc,
+  serverTimestamp
+} from "firebase/firestore";
+
+import app from "@/firebase/config";
+
 import { sendBookingMessage } from "./services/sendBookingMessage";
 import { subscribeBookingMessages } from "./services/subscribeBookingMessages";
 
 import "@/app/styles/resource-management/booking-chat.css";
+
+const db = getFirestore(app);
 
 const formatTimestamp = (ts) => {
   // serverTimestamp() is null until the write commits server-side, so
@@ -48,6 +59,32 @@ export default function BookingChat({ bookingId, currentUser }) {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages.length]);
+
+  // Mark the booking as read by the current user whenever messages
+  // change. Covers two cases in one effect:
+  //   - opening a chat that already has messages (initial snapshot
+  //     fires, length goes 0 → N)
+  //   - chat is open and a new message arrives (length N → N+1)
+  // Skipped when the current user authored the latest message — that
+  // case is already handled by sendBookingMessage's batch.
+  useEffect(() => {
+
+    if (!bookingId || !currentUser?.uid) return;
+    if (messages.length === 0) return;
+
+    const latest = messages[messages.length - 1];
+    if (latest?.authorId === currentUser.uid) return;
+
+    updateDoc(
+      doc(db, "bookings", bookingId),
+      { [`lastReadByUser.${currentUser.uid}`]: serverTimestamp() }
+    ).catch((err) => {
+      // Non-fatal: a failed read receipt shouldn't block viewing the
+      // chat, just leaves the unread badge stuck for this session.
+      console.error("Failed to mark booking as read:", err);
+    });
+
+  }, [messages.length, bookingId, currentUser?.uid]);
 
   const handleSend = async () => {
 

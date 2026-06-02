@@ -127,12 +127,39 @@ service cloud.firestore {
     //          match auth uid, status must be "pending".
     // Read:    requester, anyone whose role is in visibleToRoles, or
     //          an admin / global approver.
-    // Update:  admin, global approver, or anyone whose role is in
-    //          visibleToRoles — and only to flip status to approved
-    //          or rejected (with the matching audit field set).
+    // Update:  TWO independent branches —
+    //   (a) approve/reject: admin / global approver / anyone in
+    //       visibleToRoles can flip status pending → approved|rejected.
+    //   (b) chat metadata: anyone with parent-booking visibility can
+    //       update ONLY {lastMessageAt, lastMessageAuthorId,
+    //       lastReadByUser}. Enforced via diff().affectedKeys()
+    //       .hasOnly(...). Used by sendBookingMessage (stamps latest-
+    //       message metadata) and BookingChat (read-receipt).
+    //
+    //       Note: this branch doesn't constrain WHICH key of the
+    //       lastReadByUser map gets written — a malicious user could
+    //       suppress unread for another user by writing their uid.
+    //       Acceptable for the institutional threat model; harden
+    //       later if needed.
     // Delete:  admin only.
     // ---------------------------------------------------------------
     match /bookings/{bookingId} {
+
+      function canSeeBooking() {
+        return resource.data.requesterId == request.auth.uid
+          || myRole() in resource.data.visibleToRoles
+          || isAdmin()
+          || isGlobalApprover();
+      }
+
+      function isChatMetadataOnlyUpdate() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "lastMessageAt",
+            "lastMessageAuthorId",
+            "lastReadByUser"
+          ]);
+      }
 
       allow create: if isApproved()
         && !cannotBook()
@@ -146,14 +173,21 @@ service cloud.firestore {
         || isGlobalApprover()
       );
 
-      allow update: if isApproved()
-        && (
-          isAdmin()
-          || isGlobalApprover()
-          || myRole() in resource.data.visibleToRoles
+      allow update: if isApproved() && (
+        (
+          (
+            isAdmin()
+            || isGlobalApprover()
+            || myRole() in resource.data.visibleToRoles
+          )
+          && request.resource.data.status in ["approved", "rejected"]
+          && resource.data.status == "pending"
         )
-        && request.resource.data.status in ["approved", "rejected"]
-        && resource.data.status == "pending";
+        || (
+          canSeeBooking()
+          && isChatMetadataOnlyUpdate()
+        )
+      );
 
       allow delete: if isAdmin();
     }

@@ -128,6 +128,31 @@
   color: #1e293b;
 }
 
+/* "NEW" pill rendered next to the resource name when the current user
+   has unread chat messages on that row. Visual treatment mirrors
+   .sidebar-badge in sidebar.css (red pill, white text) so the unread
+   signal is consistent across surfaces. */
+.booking-row-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-left: 8px;
+  padding: 2px 7px;
+
+  background-color: #d93025;
+  color: #ffffff;
+
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
 .booking-table-empty {
   padding: 32px 20px;
 

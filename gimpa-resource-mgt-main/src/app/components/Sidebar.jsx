@@ -13,8 +13,11 @@ import {
 } from "firebase/firestore";
 import app from "@/firebase/config";
 
+import { subscribeBookings } from "@/app/workspace/resource-management/services/subscribeBookings";
+import { isUnread } from "@/app/workspace/resource-management/services/isUnread";
+
 // Admin-level roles that should see the pending-approvals badge.
-// Mirrors fetchBookings.js ADMIN_ROLES / firestore.rules isAdmin() ∪
+// Mirrors subscribeBookings.js ADMIN_ROLES / firestore.rules isAdmin() ∪
 // isGlobalApprover().
 const ADMIN_ROLES = [
   "super_admin",
@@ -35,7 +38,9 @@ import "@/app/styles/components/sidebar.css";
 export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveTab }) {
 
   const [role, setRole] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [bookings, setBookings] = useState([]);
   const [notifPermission, setNotifPermission] = useState("default");
 
   // Skips the first snapshot (existing-data load) so admins don't get
@@ -47,7 +52,7 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
   const firestore = getFirestore(app);
 
   useEffect(() => {
-    const fetchUserRole = async () => {
+    const fetchUserData = async () => {
 
       const user = auth.currentUser;
 
@@ -56,14 +61,36 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
       const userDoc = await getDoc(doc(firestore, "users", user.uid));
 
       if (userDoc.exists()) {
-        setRole(userDoc.data().role);
+        const userData = { uid: user.uid, ...userDoc.data() };
+        setCurrentUser(userData);
+        setRole(userData.role);
       }
 
     };
 
-    fetchUserRole();
+    fetchUserData();
 
   }, []);
+
+  // Live subscription to bookings the current user can see (any role,
+  // including non-admin requesters). Drives the unread-message badge
+  // on the Resource Management nav item — count is computed below
+  // from `bookings` + isUnread().
+  useEffect(() => {
+
+    if (!currentUser?.role) {
+      setBookings([]);
+      return;
+    }
+
+    const unsubscribe = subscribeBookings({
+      user: currentUser,
+      onUpdate: setBookings
+    });
+
+    return unsubscribe;
+
+  }, [currentUser?.uid, currentUser?.role]);
 
   // Read the browser's current permission state on mount so the
   // "enable notifications" button reflects reality across reloads.
@@ -155,6 +182,10 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
     ADMIN_ROLES.includes(role) &&
     notifPermission === "default";
 
+  const unreadBookingCount = bookings.filter(
+    (b) => isUnread(b, currentUser)
+  ).length;
+
   // roles that should see admin dashboard
   const adminRoles = ["super_admin", "Secretariat Admin", "IT Officer"];
 
@@ -204,6 +235,14 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
             {feature.name === "Admin Dashboard" && pendingCount > 0 && (
               <span className="sidebar-badge">{pendingCount}</span>
+            )}
+
+            {/* Unread booking-chat count. Sidebar has no "Bookings"
+               item — Bookings is a sub-tab under Resource Management
+               — so the badge surfaces here, mirroring the Admin
+               Dashboard pendingCount pattern. */}
+            {feature.name === "Resource Management" && unreadBookingCount > 0 && (
+              <span className="sidebar-badge">{unreadBookingCount}</span>
             )}
 
           </div>
