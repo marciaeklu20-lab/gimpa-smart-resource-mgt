@@ -1,5 +1,7 @@
 "use client";
 
+import { Fragment, useState } from "react";
+
 import {
   approveBooking
 } from "./services/approveBooking";
@@ -8,7 +10,25 @@ import {
   rejectBooking
 } from "./services/rejectBooking";
 
+import BookingChat from "./BookingChat";
+
 import "@/app/styles/resource-management/booking-table.css";
+
+const formatDateRange = (start, end) => {
+  if (!start || !end) return "—";
+  const fmt = (s) => {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  };
+  return `${fmt(start)} → ${fmt(end)}`;
+};
 
 export default function BookingTable({
   bookings,
@@ -16,47 +36,41 @@ export default function BookingTable({
   refreshBookings
 }) {
 
-  const handleApprove = async (
-    bookingId
-  ) => {
+  const [expandedId, setExpandedId] = useState(null);
 
+  const handleApprove = async (bookingId) => {
     try {
-
-      await approveBooking(
-        bookingId,
-        currentUser
-      );
-
+      await approveBooking(bookingId, currentUser);
       refreshBookings();
-
     } catch (error) {
-
       console.error(error);
-
     }
-
   };
 
-  const handleReject = async (
-    bookingId
-  ) => {
-
+  const handleReject = async (bookingId) => {
     try {
-
-      await rejectBooking(
-        bookingId,
-        currentUser
-      );
-
+      await rejectBooking(bookingId, currentUser);
       refreshBookings();
-
     } catch (error) {
-
       console.error(error);
-
     }
-
   };
+
+  const toggleExpanded = (booking, e) => {
+    // Don't toggle when clicking action buttons inside the row.
+    if (e.target.closest("button")) return;
+    setExpandedId((prev) => (prev === booking.id ? null : booking.id));
+  };
+
+  if (!bookings || bookings.length === 0) {
+    return (
+      <div className="booking-table-wrapper">
+        <div className="booking-table-empty">
+          No bookings to show.
+        </div>
+      </div>
+    );
+  }
 
   return (
 
@@ -67,108 +81,114 @@ export default function BookingTable({
         <thead>
 
           <tr>
-
-            <th>
-              Resource
-            </th>
-
-            <th>
-              Requester
-            </th>
-
-            <th>
-              Role
-            </th>
-
-            <th>
-              Department
-            </th>
-
-            <th>
-              Purpose
-            </th>
-
-            <th>
-              Status
-            </th>
-
-            <th>
-              Actions
-            </th>
-
+            <th>Resource</th>
+            <th>Requester</th>
+            <th>Role</th>
+            <th>Department</th>
+            <th>Purpose</th>
+            <th>Status</th>
+            <th>Actions</th>
           </tr>
 
         </thead>
 
         <tbody>
 
-          {bookings.map((booking) => (
+          {bookings.map((booking) => {
 
-            <tr key={booking.id}>
+            const isExpanded = expandedId === booking.id;
 
-              <td>
-                {booking.resourceName}
-              </td>
+            return (
 
-              <td>
-                {booking.requesterName}
-              </td>
+              <Fragment key={booking.id}>
 
-              <td>
-                {booking.requesterRole}
-              </td>
+                <tr
+                  className={`booking-row ${isExpanded ? "expanded" : ""}`}
+                  onClick={(e) => toggleExpanded(booking, e)}
+                >
 
-              <td>
-                {booking.requesterDepartment ||
-                  "-"}
-              </td>
+                  <td>{booking.resourceName}</td>
+                  <td>{booking.requesterName}</td>
+                  <td>{booking.requesterRole}</td>
+                  <td>{booking.requesterDepartment || "-"}</td>
+                  <td>{booking.purpose}</td>
+                  <td>{booking.status}</td>
 
-              <td>
-                {booking.purpose}
-              </td>
+                  <td>
 
-              <td>
-                {booking.status}
-              </td>
+                    {booking.status === "pending" && booking.requesterId !== currentUser?.uid && (
 
-              <td>
+                      <div className="booking-actions">
 
-                {booking.status ===
-                  "pending" && (
+                        <button
+                          className="approve-btn"
+                          onClick={() => handleApprove(booking.id)}
+                        >
+                          Approve
+                        </button>
 
-                  <div className="booking-actions">
+                        <button
+                          className="reject-btn"
+                          onClick={() => handleReject(booking.id)}
+                        >
+                          Reject
+                        </button>
 
-                    <button
-                      className="approve-btn"
-                      onClick={() =>
-                        handleApprove(
-                          booking.id
-                        )
-                      }
-                    >
-                      Approve
-                    </button>
+                      </div>
 
-                    <button
-                      className="reject-btn"
-                      onClick={() =>
-                        handleReject(
-                          booking.id
-                        )
-                      }
-                    >
-                      Reject
-                    </button>
+                    )}
 
-                  </div>
+                  </td>
+
+                </tr>
+
+                {isExpanded && (
+
+                  <tr className="booking-row-expanded">
+
+                    <td colSpan={7}>
+
+                      <div className="booking-details">
+
+                        <div className="booking-details-grid">
+                          <div>
+                            <span className="booking-details-label">When</span>
+                            <span className="booking-details-value">
+                              {formatDateRange(booking.startDate, booking.endDate)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="booking-details-label">Requester email</span>
+                            <span className="booking-details-value">
+                              {booking.requesterEmail || "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="booking-details-label">Approval route</span>
+                            <span className="booking-details-value">
+                              {booking.approvalRoute || "—"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <BookingChat
+                          bookingId={booking.id}
+                          currentUser={currentUser}
+                        />
+
+                      </div>
+
+                    </td>
+
+                  </tr>
 
                 )}
 
-              </td>
+              </Fragment>
 
-            </tr>
+            );
 
-          ))}
+          })}
 
         </tbody>
 

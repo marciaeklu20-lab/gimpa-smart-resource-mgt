@@ -1,0 +1,202 @@
+/* Discussion panel — shown inside the expanded row of a booking in
+   BookingTable. Visual language mirrors booking-table.css: white card,
+   soft blue borders (#dbeafe), navy accents (#003366), and the same
+   gradient buttons as approve/reject for consistency. */
+
+.booking-chat {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+
+  padding: 16px;
+  margin-top: 16px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.booking-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eef4ff;
+}
+
+.booking-chat-header h4 {
+  margin: 0;
+
+  color: #003366;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.booking-chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  max-height: 320px;
+  overflow-y: auto;
+
+  padding: 4px;
+}
+
+.booking-chat-empty {
+  padding: 24px 8px;
+
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.booking-chat-message {
+  max-width: 78%;
+  padding: 10px 12px;
+  border-radius: 12px;
+
+  font-size: 0.9rem;
+  line-height: 1.4;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.booking-chat-message.theirs {
+  align-self: flex-start;
+
+  background: #f1f6ff;
+  color: #1e293b;
+
+  border-bottom-left-radius: 4px;
+}
+
+.booking-chat-message.mine {
+  align-self: flex-end;
+
+  background: linear-gradient(135deg, #003366, #1e3a8a);
+  color: #ffffff;
+
+  border-bottom-right-radius: 4px;
+}
+
+.booking-chat-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.booking-chat-author {
+  font-weight: 700;
+}
+
+.booking-chat-role {
+  padding: 1px 6px;
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.18);
+  font-weight: 600;
+}
+
+.booking-chat-message.theirs .booking-chat-role {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.booking-chat-time {
+  margin-left: auto;
+  font-size: 0.7rem;
+  opacity: 0.85;
+}
+
+.booking-chat-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.booking-chat-compose {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+
+  padding-top: 10px;
+  border-top: 1px solid #eef4ff;
+}
+
+.booking-chat-textarea {
+  flex: 1;
+
+  resize: vertical;
+  min-height: 44px;
+  max-height: 160px;
+
+  padding: 10px 12px;
+
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #1e293b;
+  background: #fbfdff;
+}
+
+.booking-chat-textarea:focus {
+  outline: none;
+  border-color: #1e3a8a;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.booking-chat-send {
+  border: none;
+  outline: none;
+
+  padding: 10px 18px;
+  border-radius: 10px;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+
+  background: linear-gradient(135deg, #047857, #059669);
+  color: #ffffff;
+
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.booking-chat-send:hover:not(:disabled) {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.booking-chat-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.booking-chat-error {
+  padding: 8px 12px;
+  border-radius: 8px;
+
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .booking-chat-message {
+    max-width: 92%;
+  }
+}

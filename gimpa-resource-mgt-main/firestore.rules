@@ -157,5 +157,48 @@ service cloud.firestore {
 
       allow delete: if isAdmin();
     }
+
+    // ---------------------------------------------------------------
+    // bookings/{bookingId}/messages/{messageId}
+    //
+    // Per-booking chat threads. Same visibility model as the parent
+    // booking: requester, anyone whose role is in visibleToRoles, or
+    // an admin / global approver.
+    //
+    // Read:    matches parent booking visibility.
+    // Create:  matches parent visibility AND authorId == auth.uid AND
+    //          text is a non-empty string ≤ 1000 chars. Kept in sync
+    //          with MAX_MESSAGE_LENGTH in sendBookingMessage.js.
+    // Update/
+    // Delete:  denied — messages are immutable.
+    //
+    // The bookingDoc() helper does one extra get() per rule evaluation
+    // (parent doc lookup); this is unavoidable for cross-doc auth and
+    // is the same shape the parent rule uses on its own resource.data.
+    // ---------------------------------------------------------------
+    match /bookings/{bookingId}/messages/{messageId} {
+
+      function bookingDoc() {
+        return get(/databases/$(database)/documents/bookings/$(bookingId)).data;
+      }
+
+      function canSeeParentBooking() {
+        return bookingDoc().requesterId == request.auth.uid
+          || myRole() in bookingDoc().visibleToRoles
+          || isAdmin()
+          || isGlobalApprover();
+      }
+
+      allow read: if isApproved() && canSeeParentBooking();
+
+      allow create: if isApproved()
+        && canSeeParentBooking()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+
+      allow update, delete: if false;
+    }
   }
 }

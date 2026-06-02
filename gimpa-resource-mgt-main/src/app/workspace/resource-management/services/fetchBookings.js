@@ -32,33 +32,61 @@ export const fetchBookings = async (user) => {
 
   // Admin-level roles bypass visibleToRoles / visibleToDepartment
   // and see every booking in the collection.
-  const q = isAdminRole
-    ? query(collection(db, "bookings"))
-    : query(
+  if (isAdminRole) {
+
+    const snapshot = await getDocs(query(collection(db, "bookings")));
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+  }
+
+  // Non-admin viewers see the union of:
+  //   (a) bookings they're routed to approve (visibleToRoles match)
+  //   (b) bookings they themselves submitted (requesterId match)
+  // Done as two queries + client-side merge because Firestore can't
+  // express this disjunction without an explicit composite index.
+  const [visibleSnap, ownSnap] = await Promise.all([
+    getDocs(
+      query(
         collection(db, "bookings"),
         where(
           "visibleToRoles",
           "array-contains",
           user.role
         )
-      );
+      )
+    ),
+    getDocs(
+      query(
+        collection(db, "bookings"),
+        where("requesterId", "==", user.uid)
+      )
+    )
+  ]);
 
-  const snapshot = await getDocs(q);
+  const byId = new Map();
 
-  const all = snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  visibleSnap.docs.forEach((d) => {
+    byId.set(d.id, { id: d.id, ...d.data() });
+  });
 
-  if (isAdminRole) {
-    return all;
-  }
+  ownSnap.docs.forEach((d) => {
+    byId.set(d.id, { id: d.id, ...d.data() });
+  });
 
   // Dept-routed bookings (visibleToDepartment set) must also match
   // the viewer's department. Operations-routed bookings have null
   // visibleToDepartment and are visible to every approver in
-  // visibleToRoles regardless of department.
-  return all.filter((booking) => {
+  // visibleToRoles regardless of department. Requester's own bookings
+  // bypass the department filter so they always see their submissions.
+  return [...byId.values()].filter((booking) => {
+
+    if (booking.requesterId === user.uid) {
+      return true;
+    }
 
     if (!booking.visibleToDepartment) {
       return true;
