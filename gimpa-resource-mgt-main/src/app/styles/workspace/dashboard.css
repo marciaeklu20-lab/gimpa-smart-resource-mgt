@@ -1,0 +1,119 @@
+/* Workspace Dashboard landing surface. Greeting at the top, two-card
+   admin quick-stats strip, then the Recent Activity feed as the
+   focal-point card. */
+
+.dashboard-container {
+  width: 100%;
+  padding: 24px 28px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.dashboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-greeting {
+  margin: 0;
+  color: #003366;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.dashboard-subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.dashboard-quick-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+
+  max-width: 720px;
+}
+
+/* Stat cards are <button>s for keyboard / a11y reasons — the styling
+   below resets the default button look so they keep the card chrome. */
+.dashboard-stat-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #dbeafe;
+  padding: 18px 22px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.dashboard-stat-card:hover,
+.dashboard-stat-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  box-shadow: 0 6px 18px rgba(0, 51, 102, 0.10);
+  outline: none;
+}
+
+.dashboard-stat-card:focus-visible {
+  outline: 2px solid #1e3a8a;
+  outline-offset: 2px;
+}
+
+.dashboard-stat-value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #0b3c80;
+  line-height: 1;
+}
+
+.dashboard-stat-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Recent Activity panel — given a generous max-height since it's the
+   focal point of the Dashboard, unlike its Analytics-tab cameo. */
+.dashboard-activity-wrapper {
+  width: 100%;
+}
+
+.dashboard-activity-wrapper .recent-activity {
+  max-height: 640px;
+  min-height: 420px;
+}
+
+.dashboard-non-admin-note {
+  padding: 24px 28px;
+  background: #f1f6ff;
+  border-radius: 12px;
+  color: #1e3a8a;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+  .dashboard-greeting {
+    font-size: 1.35rem;
+  }
+}

@@ -11,7 +11,7 @@ import { subscribeBookings } from "./services/subscribeBookings";
 
 import BookingTable from "./BookingTable";
 
-export default function BookingRequests() {
+export default function BookingRequests({ initialFilter, initialExpandedId } = {}) {
 
   const auth = getAuth(app);
   const db = getFirestore(app);
@@ -71,6 +71,8 @@ export default function BookingRequests() {
     <BookingTable
       bookings={bookings}
       currentUser={currentUser}
+      initialFilter={initialFilter}
+      initialExpandedId={initialExpandedId}
     />
   );
 

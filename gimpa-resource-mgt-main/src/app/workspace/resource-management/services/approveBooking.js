@@ -24,7 +24,10 @@ export const approveBooking = async (
         role: approver.role || null
       },
       rejectedBy: null,
-      decidedAt: serverTimestamp()
+      decidedAt: serverTimestamp(),
+      // Distinct field so RecentActivity can orderBy("approvedAt", "desc")
+      // without having to also filter on status; mirrored in rejectBooking.
+      approvedAt: serverTimestamp()
     }
   );
 
