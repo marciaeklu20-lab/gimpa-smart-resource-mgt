@@ -112,3 +112,39 @@
   padding: 0 5px;
   font-size: 10px;
 }
+
+/* "Enable desktop notifications" prompt — only shown to admins before
+   they've responded to the permission request. Sits at the bottom of
+   the sidebar. */
+.sidebar-notif-btn {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background-color: rgba(11, 60, 128, 0.6);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-notif-btn:hover {
+  background-color: rgba(11, 60, 128, 0.85);
+}
+
+.sidebar-notif-btn-icon {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-container.collapsed .sidebar-notif-btn {
+  justify-content: center;
+  padding: 10px;
+  gap: 0;
+}

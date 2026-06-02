@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
 import {
   getFirestore,
@@ -24,7 +24,7 @@ const ADMIN_ROLES = [
   "Higher Level Management"
 ];
 
-import { MdOutlineDashboard } from "react-icons/md";
+import { MdOutlineDashboard, MdNotificationsActive } from "react-icons/md";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
 import { FaRobot, FaTools } from "react-icons/fa";
 import { GrResources } from "react-icons/gr";
@@ -36,6 +36,12 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
   const [role, setRole] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [notifPermission, setNotifPermission] = useState("default");
+
+  // Skips the first snapshot (existing-data load) so admins don't get
+  // flooded with notifications for users who signed up before this
+  // session started.
+  const isFirstSnapshot = useRef(true);
 
   const auth = getAuth(app);
   const firestore = getFirestore(app);
@@ -59,8 +65,17 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
   }, []);
 
-  // Live count of users awaiting admin approval. Subscribed only for
-  // admin-level viewers; torn down on unmount or role change.
+  // Read the browser's current permission state on mount so the
+  // "enable notifications" button reflects reality across reloads.
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  // Live count of users awaiting admin approval + desktop notifications
+  // for new signups. Subscribed only for admin-level viewers; torn down
+  // on unmount or role change.
   useEffect(() => {
 
     if (!role || !ADMIN_ROLES.includes(role)) {
@@ -68,18 +83,77 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
       return;
     }
 
+    isFirstSnapshot.current = true;
+
     const q = query(
       collection(firestore, "users"),
       where("needsApproval", "==", true)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+
       setPendingCount(snapshot.size);
+
+      // Skip the initial existing-data load.
+      if (isFirstSnapshot.current) {
+        isFirstSnapshot.current = false;
+        return;
+      }
+
+      if (
+        typeof window === "undefined" ||
+        !("Notification" in window) ||
+        Notification.permission !== "granted"
+      ) {
+        return;
+      }
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type !== "added") return;
+
+        const data = change.doc.data();
+        const userName = data.fullName || data.email || "A user";
+        const userRoleName = data.role || "unknown role";
+        const userId = change.doc.id;
+
+        // tag dedupes — same userId won't notify twice in one session.
+        const notification = new Notification("New approval request", {
+          body: `${userName} (${userRoleName}) signed up and is awaiting approval`,
+          icon: "/images/gimpa-logo.png",
+          tag: `pending-user-${userId}`
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          // No /workspace/admin-dashboard route exists — workspace tabs
+          // are state-driven, and Sidebar owns that state via the
+          // setActiveTab prop, so we just switch in place.
+          setActiveTab("Admin Dashboard");
+        };
+      });
     });
 
     return unsubscribe;
 
   }, [role]);
+
+  const requestNotificationPermission = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setNotifPermission(result);
+    if (result === "granted") {
+      try {
+        localStorage.setItem("grm:notifications-granted", "1");
+      } catch (e) {
+        // localStorage may be disabled (private mode etc.) — non-fatal.
+      }
+    }
+  };
+
+  const showNotifPrompt =
+    role &&
+    ADMIN_ROLES.includes(role) &&
+    notifPermission === "default";
 
   // roles that should see admin dashboard
   const adminRoles = ["super_admin", "Secretariat Admin", "IT Officer"];
@@ -137,6 +211,24 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
         ))}
 
       </nav>
+
+      {showNotifPrompt && (
+        <button
+          type="button"
+          className="sidebar-notif-btn"
+          onClick={requestNotificationPermission}
+          title="Enable desktop notifications"
+        >
+          <span className="sidebar-notif-btn-icon">
+            <MdNotificationsActive size={18} />
+          </span>
+          {!collapsed && (
+            <span className="sidebar-notif-btn-text">
+              Enable desktop notifications
+            </span>
+          )}
+        </button>
+      )}
 
     </aside>
   );
