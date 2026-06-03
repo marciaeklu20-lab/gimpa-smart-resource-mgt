@@ -3,6 +3,11 @@
 import { FaQrcode } from "react-icons/fa";
 import { BsQrCodeScan } from "react-icons/bs";
 
+import {
+  LIFECYCLE_STATUSES,
+  CONDITIONS
+} from "@/app/lib/resourceMeta";
+
 import "@/app/styles/workspace/add-resource.css";
 
 export default function ResourceFields({
@@ -22,7 +27,31 @@ export default function ResourceFields({
   quantity,
   setQuantity,
   capacity,
-  setCapacity
+  setCapacity,
+
+  lifecycleStatus,
+  setLifecycleStatus,
+  condition,
+  setCondition,
+  locationCampus,
+  setLocationCampus,
+  locationBuilding,
+  setLocationBuilding,
+  locationFloor,
+  setLocationFloor,
+  locationRoom,
+  setLocationRoom,
+  custodianId,
+  setCustodianId,
+  staffOptions = [],
+  acquisitionDate,
+  setAcquisitionDate,
+  acquisitionCost,
+  setAcquisitionCost,
+  warrantyExpiry,
+  setWarrantyExpiry,
+  vendor,
+  setVendor
 }) {
 
   const showQuantity = category !== "Facilities";
@@ -150,6 +179,124 @@ export default function ResourceFields({
           placeholder="120"
           value={capacity}
           onChange={(e) => setCapacity(e.target.value)}
+        />
+      </div>
+
+      {/* Lifecycle Status (Stage 4a) */}
+      <div className="form-group">
+        <label>Lifecycle Status</label>
+        <select
+          value={lifecycleStatus}
+          onChange={(e) => setLifecycleStatus(e.target.value)}
+        >
+          {LIFECYCLE_STATUSES.map((s) => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Condition (Stage 4a) */}
+      <div className="form-group">
+        <label>Condition</label>
+        <select
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+        >
+          {CONDITIONS.map((c) => (
+            <option key={c.value} value={c.value}>{c.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Location (Stage 4a) — 4 optional parts */}
+      <div className="form-group">
+        <label>Location — Campus (optional)</label>
+        <input
+          type="text"
+          placeholder="Main Campus"
+          value={locationCampus}
+          onChange={(e) => setLocationCampus(e.target.value)}
+        />
+      </div>
+      <div className="form-group">
+        <label>Location — Building (optional)</label>
+        <input
+          type="text"
+          placeholder="GIMPA Block A"
+          value={locationBuilding}
+          onChange={(e) => setLocationBuilding(e.target.value)}
+        />
+      </div>
+      <div className="form-group">
+        <label>Location — Floor (optional)</label>
+        <input
+          type="text"
+          placeholder="Floor 1"
+          value={locationFloor}
+          onChange={(e) => setLocationFloor(e.target.value)}
+        />
+      </div>
+      <div className="form-group">
+        <label>Location — Room (optional)</label>
+        <input
+          type="text"
+          placeholder="Room 101"
+          value={locationRoom}
+          onChange={(e) => setLocationRoom(e.target.value)}
+        />
+      </div>
+
+      {/* Custodian (Stage 4a) */}
+      <div className="form-group">
+        <label>Custodian (optional)</label>
+        <select
+          value={custodianId}
+          onChange={(e) => setCustodianId(e.target.value)}
+        >
+          <option value="">Unassigned</option>
+          {staffOptions.map((s) => (
+            <option key={s.uid} value={s.uid}>
+              {s.fullName || s.email} — {s.role}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Acquisition (Stage 4a) */}
+      <div className="form-group">
+        <label>Acquisition Date (optional)</label>
+        <input
+          type="date"
+          value={acquisitionDate}
+          onChange={(e) => setAcquisitionDate(e.target.value)}
+        />
+      </div>
+      <div className="form-group">
+        <label>Acquisition Cost (GHS, optional)</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="0.00"
+          value={acquisitionCost}
+          onChange={(e) => setAcquisitionCost(e.target.value)}
+        />
+      </div>
+      <div className="form-group">
+        <label>Warranty Expiry (optional)</label>
+        <input
+          type="date"
+          value={warrantyExpiry}
+          onChange={(e) => setWarrantyExpiry(e.target.value)}
+        />
+      </div>
+      <div className="form-group">
+        <label>Vendor (optional)</label>
+        <input
+          type="text"
+          placeholder="HP Ghana"
+          value={vendor}
+          onChange={(e) => setVendor(e.target.value)}
         />
       </div>
 

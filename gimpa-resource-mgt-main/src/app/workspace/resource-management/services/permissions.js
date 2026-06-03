@@ -1,3 +1,5 @@
+import { GLOBAL_APPROVERS } from "@/app/lib/roles";
+
 export const departmentRoles = [
   "Course Rep",
   "Lecturer",
@@ -14,11 +16,11 @@ export const operationalApprovers = [
   "Receptionist"
 ];
 
-export const globalApprovers = [
-  "Administrative Officer",
-  "Higher Level Management",
-  "super_admin"
-];
+// Re-exported under its legacy name for getBookingRecipients.js. The
+// shared list excludes super_admin (super_admin sees every booking via
+// ALL_BOOKING_ADMINS in subscribeBookings.js, so they don't need to be
+// listed as a booking target).
+export const globalApprovers = GLOBAL_APPROVERS;
 
 export const canBookResource = (
   role

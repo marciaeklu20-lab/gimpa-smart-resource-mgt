@@ -9,8 +9,9 @@ rules_version = '2';
 //   - users/{uid}.department     : string | null
 //
 // All collection-scoped helpers below read the requester's user doc.
-// Keep them in sync with src/app/components/Sidebar.jsx (adminRoles)
-// and src/app/workspace/resource-management/services/permissions.js.
+// Role lists live in src/app/lib/roles.js — keep the inline arrays in
+// isAdmin / isGlobalApprover / isMaintenanceStaff in sync with that
+// file by hand (rules can't import JS).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -40,6 +41,7 @@ service cloud.firestore {
       return userExists() && userDoc().approved == true;
     }
 
+    // Mirrors PLATFORM_ADMINS in src/app/lib/roles.js.
     function isAdmin() {
       return myRole() in [
         "super_admin",
@@ -56,11 +58,23 @@ service cloud.firestore {
       ];
     }
 
+    // Mirrors GLOBAL_APPROVERS in src/app/lib/roles.js. super_admin
+    // is intentionally omitted — they already pass via isAdmin().
     function isGlobalApprover() {
       return myRole() in [
         "Administrative Officer",
-        "Higher Level Management",
-        "super_admin"
+        "Higher Level Management"
+      ];
+    }
+
+    // Mirrors MAINTENANCE_ROLES in src/app/lib/roles.js. Maintenance
+    // Staff can flip lifecycleStatus + condition on resources and write
+    // entries into the resource history subcollections; they are NOT
+    // admins or global approvers and don't see all bookings.
+    function isMaintenanceStaff() {
+      return myRole() in [
+        "super_admin",
+        "Maintenance Staff"
       ];
     }
 
@@ -77,8 +91,18 @@ service cloud.firestore {
     // ---------------------------------------------------------------
     match /users/{uid} {
 
-      allow read: if isSignedIn() && (
+      // Single-doc reads stay strict — only the user themselves or an
+      // admin. Listing/querying users is allowed for the operator
+      // roles that drive the custodian picker on AddResourceForm
+      // (stores/facility) plus Maintenance Staff (Stage 4c+).
+      allow get: if isSignedIn() && (
         request.auth.uid == uid || isAdmin()
+      );
+
+      allow list: if isApproved() && (
+        isAdmin()
+        || isOperationalApprover()
+        || isMaintenanceStaff()
       );
 
       // Self-create at signup. We can't read the user doc here (it
@@ -108,16 +132,81 @@ service cloud.firestore {
     // ---------------------------------------------------------------
     // resources/{assetCode}
     //
-    // Any approved user can list resources to book them. Only admins
-    // (or the dedicated stores/facility officers) can create or edit.
+    // Any approved user can list resources to book them. Admins and
+    // the dedicated stores/facility officers can create/delete and
+    // make any edit. Maintenance Staff (Stage 4a+) can update ONLY
+    // {lifecycleStatus, condition} — the affectedKeys().hasOnly([...])
+    // guard is what stops them from touching name, custodian, cost,
+    // location, vendor, etc.
     // ---------------------------------------------------------------
     match /resources/{assetCode} {
 
       allow read: if isApproved();
 
-      allow create, update, delete: if isApproved() && (
+      allow create: if isApproved() && (
         isAdmin() || isOperationalApprover()
       );
+
+      allow update: if isApproved() && (
+        isAdmin()
+        || isOperationalApprover()
+        || (
+          isMaintenanceStaff()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(["lifecycleStatus", "condition"])
+        )
+      );
+
+      allow delete: if isApproved() && (
+        isAdmin() || isOperationalApprover()
+      );
+    }
+
+    // ---------------------------------------------------------------
+    // resources/{assetCode}/{conditionHistory|lifecycleHistory|
+    //                       custodianHistory}/{entryId}
+    //
+    // Immutable per-asset audit log. One match block per subcollection
+    // (rules can't parameterize on the collection name).
+    //
+    // Read:    any approved user — matches the parent /resources
+    //          read rule (everyone who can see the resource can see
+    //          its history).
+    // Create:  admin, Maintenance Staff, or operational approvers.
+    //          Operational approvers need create access because they
+    //          write the initial history entries on resource creation
+    //          (AddResourceForm).
+    // Update/
+    // Delete:  denied — history is append-only.
+    //
+    // TODO(stage-4c): lock down field shape on create
+    // (changedAt, oldX/newX, reason, changedBy{uid,name,role}) once
+    // the Maintenance UI starts writing these from clients. For 4a
+    // payloads are unconstrained because only trusted code (the seed
+    // script + AddResourceForm) writes them.
+    // ---------------------------------------------------------------
+    match /resources/{assetCode}/conditionHistory/{entryId} {
+      allow read: if isApproved();
+      allow create: if isApproved() && (
+        isAdmin() || isMaintenanceStaff() || isOperationalApprover()
+      );
+      allow update, delete: if false;
+    }
+
+    match /resources/{assetCode}/lifecycleHistory/{entryId} {
+      allow read: if isApproved();
+      allow create: if isApproved() && (
+        isAdmin() || isMaintenanceStaff() || isOperationalApprover()
+      );
+      allow update, delete: if false;
+    }
+
+    match /resources/{assetCode}/custodianHistory/{entryId} {
+      allow read: if isApproved();
+      allow create: if isApproved() && (
+        isAdmin() || isMaintenanceStaff() || isOperationalApprover()
+      );
+      allow update, delete: if false;
     }
 
     // ---------------------------------------------------------------

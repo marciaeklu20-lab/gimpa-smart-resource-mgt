@@ -15,6 +15,8 @@ import Users from "@/app/workspace/admin-dashboard/Users";
 import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
 
+import { PLATFORM_ADMINS } from "@/app/lib/roles";
+
 import "@/app/styles/workspace/workspace.css";
 
 export default function WorkspacePage() {
@@ -74,11 +76,10 @@ export default function WorkspacePage() {
   const resourceTabs = ["Campus Resources", "Bookings"];
   const adminTabs = ["Approvals", "Users"];
 
-  // Mirrors adminRoles in Sidebar.jsx — the sidebar already hides the
-  // Admin Dashboard tab for non-admins; Analytics uses the same gate so
-  // a non-admin who somehow lands on the tab sees a clear message instead
-  // of a Firestore permission error.
-  const adminRoles = ["super_admin", "Secretariat Admin", "IT Officer"];
+  // Mirrors Sidebar.jsx — the sidebar already hides the Admin Dashboard
+  // tab for non-admins; Analytics uses the same gate so a non-admin who
+  // somehow lands on the tab sees a clear message instead of a Firestore
+  // permission error.
 
   const auth = getAuth(app);
   const firestore = getFirestore(app);
@@ -207,7 +208,7 @@ export default function WorkspacePage() {
 
           {/* ANALYTICS */}
           {activeSidebar === "Analytics" && (
-            adminRoles.includes(userRole)
+            PLATFORM_ADMINS.includes(userRole)
               ? <Analytics />
               : <div className="workspace-loading">Analytics is admin-only.</div>
           )}

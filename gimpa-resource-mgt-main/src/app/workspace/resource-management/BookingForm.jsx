@@ -145,6 +145,15 @@ export default function BookingForm({
         alert(
           "End time must be after start time."
         );
+      } else if (error.message?.startsWith("RESOURCE_NOT_BOOKABLE:")) {
+        const status = error.message.split(":")[1];
+        alert(
+          `This asset cannot be booked. Current status: ${status}`
+        );
+      } else if (error.message === "RESOURCE_NOT_FOUND") {
+        alert(
+          "This resource no longer exists."
+        );
       } else {
         alert(
           "Failed to submit booking"

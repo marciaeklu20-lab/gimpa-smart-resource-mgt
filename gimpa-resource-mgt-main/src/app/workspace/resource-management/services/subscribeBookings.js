@@ -8,19 +8,9 @@ import {
 
 import app from "@/firebase/config";
 
-const db = getFirestore(app);
+import { ALL_BOOKING_ADMINS } from "@/app/lib/roles";
 
-// Roles that see every booking regardless of visibleToRoles /
-// visibleToDepartment. Mirrors firestore.rules isAdmin() ∪
-// isGlobalApprover() — kept in sync manually since the rules
-// file can't import JS.
-const ADMIN_ROLES = [
-  "super_admin",
-  "Secretariat Admin",
-  "IT Officer",
-  "Administrative Officer",
-  "Higher Level Management"
-];
+const db = getFirestore(app);
 
 // Dept-routed bookings (visibleToDepartment set) must also match the
 // viewer's department. Operations-routed bookings have null
@@ -45,7 +35,7 @@ export const subscribeBookings = ({ user, onUpdate }) => {
     return () => {};
   }
 
-  if (ADMIN_ROLES.includes(user.role)) {
+  if (ALL_BOOKING_ADMINS.includes(user.role)) {
 
     // Admin-level roles see every booking via a single listener.
     return onSnapshot(

@@ -4,6 +4,8 @@ import {
   query,
   where,
   getDocs,
+  getDoc,
+  doc,
   addDoc,
   serverTimestamp
 } from "firebase/firestore";
@@ -33,6 +35,24 @@ export const createBooking = async ({
   // it's cheaper and the error message is clearer.
   if (!(startDate < endDate)) {
     throw new Error("INVALID_DATE_RANGE");
+  }
+
+  // Re-fetch the resource so the lifecycle gate runs against canonical
+  // state, not whatever the resource picker had cached. A resource
+  // could have flipped to in_maintenance / retired since the page
+  // loaded.
+  const resourceSnap = await getDoc(
+    doc(db, "resources", resource.assetCode)
+  );
+  if (!resourceSnap.exists()) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+  const liveResource = resourceSnap.data();
+  // Resources created before Stage 4a have no lifecycleStatus field —
+  // treat that as active so legacy data keeps working.
+  const lifecycleStatus = liveResource.lifecycleStatus || "active";
+  if (lifecycleStatus !== "active") {
+    throw new Error(`RESOURCE_NOT_BOOKABLE:${lifecycleStatus}`);
   }
 
   // Conflict check: pull every non-rejected booking for this resource

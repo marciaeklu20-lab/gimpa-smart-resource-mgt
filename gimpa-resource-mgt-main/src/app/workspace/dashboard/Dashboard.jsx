@@ -14,19 +14,11 @@ import app from "@/firebase/config";
 
 import RecentActivity from "@/app/workspace/analytics/RecentActivity";
 
+import { ALL_BOOKING_ADMINS } from "@/app/lib/roles";
+
 import "@/app/styles/workspace/dashboard.css";
 
 const db = getFirestore(app);
-
-// Mirrors Sidebar.jsx ADMIN_ROLES / firestore.rules isAdmin() ∪
-// isGlobalApprover() — kept in sync manually.
-const ADMIN_ROLES = [
-  "super_admin",
-  "Secretariat Admin",
-  "IT Officer",
-  "Administrative Officer",
-  "Higher Level Management"
-];
 
 const todayISODate = () => {
   // ISO YYYY-MM-DD for today, in the user's local timezone. Used to
@@ -43,7 +35,7 @@ export default function Dashboard({ currentUser, navigate }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [todayCount, setTodayCount] = useState(0);
 
-  const isAdmin = !!(currentUser && ADMIN_ROLES.includes(currentUser.role));
+  const isAdmin = !!(currentUser && ALL_BOOKING_ADMINS.includes(currentUser.role));
 
   // Quick-stats listeners — admin-only because non-admins can't read
   // the full bookings collection per Firestore rules.

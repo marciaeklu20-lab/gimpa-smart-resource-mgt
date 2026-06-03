@@ -21,6 +21,11 @@ import {
   canBookResource
 } from "./services/permissions";
 
+import {
+  isBookable,
+  lifecycleLabel
+} from "@/app/lib/resourceMeta";
+
 export default function ResourceList({
   searchTerm,
   selectedCategory,
@@ -214,21 +219,22 @@ export default function ResourceList({
 
                     <td>
 
-                      {canBookResource(
-                        userRole
-                      ) && (
-
-                        <button
-                          className="book-resource-btn"
-                          onClick={() =>
-                            setSelectedResource(
-                              resource
-                            )
-                          }
-                        >
-                          Book Resource
-                        </button>
-
+                      {canBookResource(userRole) && (
+                        isBookable(resource) ? (
+                          <button
+                            className="book-resource-btn"
+                            onClick={() => setSelectedResource(resource)}
+                          >
+                            Book Resource
+                          </button>
+                        ) : (
+                          <span
+                            className="resource-status-unavailable"
+                            title={`Status: ${lifecycleLabel(resource.lifecycleStatus)}`}
+                          >
+                            {lifecycleLabel(resource.lifecycleStatus)}
+                          </span>
+                        )
                       )}
 
                     </td>

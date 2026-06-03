@@ -6,6 +6,11 @@ import {
   canBookResource
 } from "../services/permissions";
 
+import {
+  isBookable,
+  lifecycleLabel
+} from "@/app/lib/resourceMeta";
+
 export default function ResourceTable({
   filteredResources,
   currentUserRole,
@@ -94,21 +99,22 @@ export default function ResourceTable({
 
                 <td>
 
-                  {canBookResource(
-                    currentUserRole
-                  ) && (
-
-                    <button
-                      className="book-resource-btn"
-                      onClick={() =>
-                        setSelectedResource(
-                          resource
-                        )
-                      }
-                    >
-                      Book
-                    </button>
-
+                  {canBookResource(currentUserRole) && (
+                    isBookable(resource) ? (
+                      <button
+                        className="book-resource-btn"
+                        onClick={() => setSelectedResource(resource)}
+                      >
+                        Book
+                      </button>
+                    ) : (
+                      <span
+                        className="resource-status-unavailable"
+                        title={`Status: ${lifecycleLabel(resource.lifecycleStatus)}`}
+                      >
+                        {lifecycleLabel(resource.lifecycleStatus)}
+                      </span>
+                    )
                   )}
 
                 </td>

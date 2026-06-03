@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -16,16 +17,7 @@ import app from "@/firebase/config";
 import { subscribeBookings } from "@/app/workspace/resource-management/services/subscribeBookings";
 import { isUnread } from "@/app/workspace/resource-management/services/isUnread";
 
-// Admin-level roles that should see the pending-approvals badge.
-// Mirrors subscribeBookings.js ADMIN_ROLES / firestore.rules isAdmin() ∪
-// isGlobalApprover().
-const ADMIN_ROLES = [
-  "super_admin",
-  "Secretariat Admin",
-  "IT Officer",
-  "Administrative Officer",
-  "Higher Level Management"
-];
+import { PLATFORM_ADMINS } from "@/app/lib/roles";
 
 import { MdOutlineDashboard, MdNotificationsActive } from "react-icons/md";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
@@ -105,7 +97,7 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
   // on unmount or role change.
   useEffect(() => {
 
-    if (!role || !ADMIN_ROLES.includes(role)) {
+    if (!role || !PLATFORM_ADMINS.includes(role)) {
       setPendingCount(0);
       return;
     }
@@ -179,15 +171,12 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
   const showNotifPrompt =
     role &&
-    ADMIN_ROLES.includes(role) &&
+    PLATFORM_ADMINS.includes(role) &&
     notifPermission === "default";
 
   const unreadBookingCount = bookings.filter(
     (b) => isUnread(b, currentUser)
   ).length;
-
-  // roles that should see admin dashboard
-  const adminRoles = ["super_admin", "Secretariat Admin", "IT Officer"];
 
   const features = [
     { name: "Dashboard", icon: <MdOutlineDashboard size={20} /> },
@@ -197,8 +186,8 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
     { name: "Analytics", icon: <BsMenuButtonWide size={20} /> },
     { name: "AI Assistant", icon: <FaRobot size={20} /> },
 
-    // Admin Dashboard visible only to admin roles
-    ...(adminRoles.includes(role)
+    // Admin Dashboard visible only to platform admins.
+    ...(PLATFORM_ADMINS.includes(role)
       ? [{ name: "Admin Dashboard", icon: <RiAdminLine size={20} /> }]
       : []),
   ];

@@ -144,6 +144,26 @@
   transform: scale(0.98);
 }
 
+/* Shown in place of the Book button when the resource is not in
+   "active" lifecycle status (in_maintenance, retired, disposed, lost).
+   Visually marked as unavailable so it's obvious the row can't be
+   booked, without removing the row from the listing. */
+.resource-status-unavailable {
+  display: inline-block;
+
+  padding: 6px 10px;
+
+  background: #fef3c7;
+  color: #92400e;
+
+  border-radius: 999px;
+
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
 .no-resources {
   padding: 55px !important;
 
