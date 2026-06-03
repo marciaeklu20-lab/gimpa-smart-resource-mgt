@@ -23,6 +23,30 @@
         { "fieldPath": "resourceId", "order": "ASCENDING" },
         { "fieldPath": "createdAt",  "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "faults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "faults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "reporterId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "faults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",     "order": "ASCENDING" },
+        { "fieldPath": "resolvedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

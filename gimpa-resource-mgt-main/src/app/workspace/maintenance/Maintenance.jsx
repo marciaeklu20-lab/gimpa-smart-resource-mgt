@@ -38,7 +38,7 @@ export default function Maintenance({ currentUser, navigate }) {
         <MaintenanceDashboard currentUser={currentUser} />
       )}
 
-      {activeTab === "Faults" && <FaultsList />}
+      {activeTab === "Faults" && <FaultsList navigate={navigate} />}
 
       {activeTab === "Maintenance Log" && <MaintenanceLog />}
 

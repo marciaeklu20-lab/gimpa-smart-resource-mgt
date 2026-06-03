@@ -43,11 +43,17 @@ export default function WorkspacePage() {
     expandedId: null
   });
 
+  // Stage 4d: deep-link from FaultDetailPanel "open asset" — when set,
+  // CampusResource picks this up via initialAssetId and selects the
+  // matching row in its master table. Same auto-clear pattern as
+  // bookingsView so a stale assetId doesn't follow the user around.
+  const [resourceView, setResourceView] = useState({ assetId: null });
+
   // Single cross-tab navigation helper. Dashboard / RecentActivity call
   // this instead of touching the individual setters directly. When `tab`
   // is omitted, picks the natural landing tab for that sidebar — mirrors
   // the Sidebar onClick behaviour so callers don't need to know it.
-  const navigate = ({ sidebar, tab, filter, expandedId } = {}) => {
+  const navigate = ({ sidebar, tab, filter, expandedId, assetId } = {}) => {
     if (sidebar) setActiveSidebar(sidebar);
     if (tab) {
       setActiveTab(tab);
@@ -63,6 +69,7 @@ export default function WorkspacePage() {
       filter: filter ?? null,
       expandedId: expandedId ?? null
     });
+    setResourceView({ assetId: assetId ?? null });
   };
 
   // Auto-clear bookingsView whenever the user navigates away from
@@ -71,6 +78,18 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (activeSidebar !== "Resource Management" || activeTab !== "Bookings") {
       setBookingsView({ filter: null, expandedId: null });
+    }
+  }, [activeSidebar, activeTab]);
+
+  // Auto-clear resourceView when leaving Resource Management → Campus
+  // Resources, so a stale "navigate to asset X" intent doesn't follow
+  // the user back into the tab on a fresh visit.
+  useEffect(() => {
+    if (
+      activeSidebar !== "Resource Management"
+      || activeTab !== "Campus Resources"
+    ) {
+      setResourceView({ assetId: null });
     }
   }, [activeSidebar, activeTab]);
 
@@ -174,7 +193,10 @@ export default function WorkspacePage() {
           )}
 
           {activeSidebar === "Resource Management" && activeTab === "Campus Resources" && (
-            <CampusResource userRole={userRole} />
+            <CampusResource
+              userRole={userRole}
+              initialAssetId={resourceView.assetId}
+            />
           )}
 
           {activeSidebar === "Resource Management" && activeTab === "Bookings" && (

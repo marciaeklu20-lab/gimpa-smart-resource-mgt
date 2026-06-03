@@ -323,5 +323,87 @@ service cloud.firestore {
 
       allow update, delete: if false;
     }
+
+    // ---------------------------------------------------------------
+    // faults/{faultId}  (Stage 4d)
+    //
+    // Create:  any approved user. reporterId must match auth uid;
+    //          status must be "pending"; description must be non-empty
+    //          and ≤ 2000 chars. (Severity / image / routing are
+    //          validated client-side; Storage rules also gate image
+    //          size + content type.)
+    // Read:    reporter, anyone whose role is in routedToRoles, admin,
+    //          or Maintenance Staff.
+    // Update:  admin + Maintenance Staff only (Stage 4e workflow
+    //          transitions will use this). Reporters cannot edit
+    //          their own faults — the model is "report and forget";
+    //          ownership transfers to maintenance on submit.
+    // Delete:  admin only.
+    // ---------------------------------------------------------------
+    match /faults/{faultId} {
+
+      function canSeeFault() {
+        return resource.data.reporterId == request.auth.uid
+          || myRole() in resource.data.routedToRoles
+          || isAdmin()
+          || isMaintenanceStaff();
+      }
+
+      allow read: if isApproved() && canSeeFault();
+
+      allow create: if isApproved()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == "pending"
+        && request.resource.data.resourceId is string
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 2000;
+
+      allow update: if isApproved() && (
+        isAdmin() || isMaintenanceStaff()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // faults/{faultId}/statusHistory/{entryId}  (Stage 4d)
+    //
+    // Append-only audit log mirroring the parent fault's visibility.
+    // Stage 4d writes one entry on create (the "Fault reported" entry,
+    // authored by the reporter — see the canCreateEntry helper). Stage
+    // 4e adds entries on each workflow transition (acknowledged, in
+    // progress, resolved), all of which run under admin/maintenance
+    // accounts.
+    //
+    // Read:    inherits the parent fault's visibility via a get().
+    // Create:  admin, Maintenance Staff, OR the reporter writing their
+    //          own initial entry (changedBy.uid == auth.uid).
+    // Update/
+    // Delete:  denied.
+    // ---------------------------------------------------------------
+    match /faults/{faultId}/statusHistory/{entryId} {
+
+      function parentFault() {
+        return get(/databases/$(database)/documents/faults/$(faultId)).data;
+      }
+
+      function canSeeParentFault() {
+        return parentFault().reporterId == request.auth.uid
+          || myRole() in parentFault().routedToRoles
+          || isAdmin()
+          || isMaintenanceStaff();
+      }
+
+      allow read: if isApproved() && canSeeParentFault();
+
+      allow create: if isApproved() && (
+        isAdmin()
+        || isMaintenanceStaff()
+        || request.resource.data.changedBy.uid == request.auth.uid
+      );
+
+      allow update, delete: if false;
+    }
   }
 }

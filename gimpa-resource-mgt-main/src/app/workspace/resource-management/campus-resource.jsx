@@ -35,7 +35,8 @@ import "@/app/styles/resource-management/resource-list.css";
 import "@/app/styles/resource-management/asset-master-detail.css";
 
 export default function CampusResource({
-  userRole
+  userRole,
+  initialAssetId
 }) {
 
   const db = getFirestore(app);
@@ -56,7 +57,10 @@ export default function CampusResource({
   // populating the detail panel on the right.
   const [selectedAssetId, setSelectedAssetId] = useState(null);
 
-  const [currentUserRole, setCurrentUserRole] = useState(null);
+  // Stage 4d: we now need the full user (not just role) for the
+  // Report-Fault modal's reporter fields. Derive role from this.
+  const [currentUser, setCurrentUser] = useState(null);
+  const currentUserRole = currentUser?.role || null;
 
   const allowedRoles = [
     "Stores/Inventory Officer",
@@ -104,7 +108,7 @@ export default function CampusResource({
         );
 
         if (userDoc.exists()) {
-          setCurrentUserRole(userDoc.data().role);
+          setCurrentUser({ uid: firebaseUser.uid, ...userDoc.data() });
         }
 
       } catch (error) {
@@ -124,6 +128,15 @@ export default function CampusResource({
     fetchResources();
 
   }, []);
+
+  // Stage 4d: deep-link from FaultDetailPanel "open asset" — when the
+  // parent passes an initialAssetId, select that asset in the master
+  // pane so the detail panel populates immediately on landing.
+  useEffect(() => {
+    if (initialAssetId) {
+      setSelectedAssetId(initialAssetId);
+    }
+  }, [initialAssetId]);
 
   // Clear the type filter whenever the category changes — a type
   // selected under category A is meaningless under category B.
@@ -240,6 +253,7 @@ export default function CampusResource({
           <AssetDetailPanel
             selectedAsset={selectedAsset}
             currentUserRole={currentUserRole}
+            currentUser={currentUser}
             onClose={() => setSelectedAssetId(null)}
           />
 

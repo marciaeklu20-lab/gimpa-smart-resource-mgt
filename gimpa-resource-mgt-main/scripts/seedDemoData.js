@@ -225,6 +225,26 @@ const wipeResourcesCollection = async () => {
   return snap.size;
 };
 
+// Stage 4d: faults collection wipe. Each fault carries a statusHistory
+// subcollection; Admin SDK doesn't cascade, so we delete the subcoll
+// before the parent. Storage objects (fault images) are not deleted
+// here — we'd need to enumerate the bucket, which is out of scope for
+// the seed reset. Acceptable; orphaned blobs are cheap.
+const wipeFaultsCollection = async () => {
+  const snap = await db.collection("faults").get();
+  if (snap.empty) return 0;
+  for (const docSnap of snap.docs) {
+    const history = await docSnap.ref.collection("statusHistory").get();
+    if (!history.empty) {
+      const batch = db.batch();
+      history.docs.forEach((h) => batch.delete(h.ref));
+      await batch.commit();
+    }
+    await docSnap.ref.delete();
+  }
+  return snap.size;
+};
+
 const wipeUsersExceptSuperAdmin = async () => {
   const snap = await db.collection("users").get();
   let count = 0;
@@ -1047,6 +1067,126 @@ const seedBookings = async (accountsByEmail) => {
 };
 
 // ---------------------------------------------------------------
+// 7a. Faults (Stage 4d).
+//
+// Seeds 3 pending faults so the Maintenance Faults sub-tab has
+// content on first load. One carries a placeholder image URL (NOT
+// uploaded to Storage — see spec): the browser loads it directly
+// from the CDN. Each fault gets its initial statusHistory entry
+// written in the same batch.
+// ---------------------------------------------------------------
+
+const DEMO_FAULTS = [
+  {
+    resourceId: "LAB-002",
+    resourceName: "Computer Lab 2",
+    resourceCategory: "Facilities",
+    reporterEmail: "demo.student@st.gimpa.edu.gh",
+    description:
+      "Two workstations at the back have black screens after boot. " +
+      "Power cycling doesn't fix — they reach the login screen then go black.",
+    severity: "major",
+    imageUrl: null
+  },
+  {
+    resourceId: "EQP-004",
+    resourceName: "Camera Kit",
+    resourceCategory: "Electronics & Electrical Equipment",
+    reporterEmail: "demo.lecturer@gimpa.edu.gh",
+    description:
+      "Camera battery dies after roughly 20 minutes of recording. " +
+      "Barely usable for an event longer than a single talk.",
+    severity: "minor",
+    imageUrl: null
+  },
+  {
+    resourceId: "EQP-001",
+    resourceName: "Projector A",
+    resourceCategory: "Electronics & Electrical Equipment",
+    reporterEmail: "demo.lecturer@gimpa.edu.gh",
+    description:
+      "Lens has a hairline crack — projected image now has a visible " +
+      "dark line across the right edge. Photo attached.",
+    severity: "major",
+    imageUrl: "https://placehold.co/600x400/png?text=Cracked+Lens"
+  }
+];
+
+const seedFaults = async (accountsByEmail) => {
+
+  let written = 0;
+
+  for (const f of DEMO_FAULTS) {
+
+    const reporter = accountsByEmail[f.reporterEmail];
+    if (!reporter) {
+      console.warn(
+        `  ! skipping fault for ${f.resourceId}: ` +
+        `reporter ${f.reporterEmail} not found in seeded accounts`
+      );
+      continue;
+    }
+
+    const actor = {
+      uid: reporter.uid,
+      name: reporter.fullName,
+      role: reporter.userDoc.role
+    };
+
+    const faultRef = db.collection("faults").doc();
+
+    const faultData = {
+      resourceId: f.resourceId,
+      resourceName: f.resourceName,
+      resourceCategory: f.resourceCategory,
+
+      reporterId: reporter.uid,
+      reporterName: reporter.fullName,
+      reporterRole: reporter.userDoc.role,
+      reporterDepartment: reporter.userDoc.department || null,
+
+      description: f.description,
+      severity: f.severity,
+
+      imageUrl: f.imageUrl,
+      imageStoragePath: null,
+
+      status: "pending",
+      routedToRoles: ["super_admin", "Maintenance Staff"],
+
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+
+      acknowledgedAt: null,
+      acknowledgedBy: null,
+      inProgressAt: null,
+      resolvedAt: null,
+      resolvedBy: null,
+      resolutionNotes: null,
+      newConditionAfterResolution: null
+    };
+
+    const historyRef = faultRef.collection("statusHistory").doc();
+    const historyData = {
+      changedAt: admin.firestore.FieldValue.serverTimestamp(),
+      oldStatus: null,
+      newStatus: "pending",
+      notes: "Fault reported",
+      changedBy: actor
+    };
+
+    const batch = db.batch();
+    batch.set(faultRef, faultData);
+    batch.set(historyRef, historyData);
+    await batch.commit();
+
+    written++;
+  }
+
+  return written;
+};
+
+// ---------------------------------------------------------------
 // 8. Main.
 // ---------------------------------------------------------------
 
@@ -1063,11 +1203,13 @@ const seedBookings = async (accountsByEmail) => {
   }
 
   console.log("\nWiping existing data...");
+  const wipedFaults = await wipeFaultsCollection();
   const wipedBookings = await wipeBookingsCollection();
   const wipedResources = await wipeResourcesCollection();
   const wipedUsers = await wipeUsersExceptSuperAdmin();
   console.log(
-    `Wiped ${wipedBookings} bookings, ${wipedResources} resources, ${wipedUsers} users.`
+    `Wiped ${wipedFaults} faults, ${wipedBookings} bookings, ` +
+    `${wipedResources} resources, ${wipedUsers} users.`
   );
 
   let seededAccounts = [];
@@ -1133,10 +1275,15 @@ const seedBookings = async (accountsByEmail) => {
   const bookingCount = await seedBookings(accountsByEmail);
   console.log(`Seeded ${bookingCount} bookings (including 1 with chat thread).`);
 
+  console.log("\nSeeding faults...");
+  const faultCount = await seedFaults(accountsByEmail);
+  console.log(`Seeded ${faultCount} faults (1 with placeholder image).`);
+
   printSummary({
     accounts: seededAccounts,
     resourceCount,
     bookingCount,
+    faultCount,
     skipAuth: false
   });
 
@@ -1147,7 +1294,7 @@ const seedBookings = async (accountsByEmail) => {
   process.exit(1);
 });
 
-function printSummary({ accounts, resourceCount, bookingCount, skipAuth }) {
+function printSummary({ accounts, resourceCount, bookingCount, faultCount, skipAuth }) {
   console.log("\n=====================================");
   console.log("Demo data ready.");
   console.log("=====================================\n");
@@ -1162,6 +1309,9 @@ function printSummary({ accounts, resourceCount, bookingCount, skipAuth }) {
 
   console.log(`Resources seeded:  ${resourceCount}`);
   console.log(`Bookings seeded:   ${bookingCount}`);
+  if (faultCount != null) {
+    console.log(`Faults seeded:     ${faultCount}`);
+  }
   console.log(`Super-admin preserved: ${SUPER_ADMIN_EMAIL}`);
   console.log("\nDone. Database ready for demo.\n");
 }

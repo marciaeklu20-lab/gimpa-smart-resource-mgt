@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import dynamic from "next/dynamic";
+
 import {
   getFirestore,
   collection,
@@ -31,9 +33,19 @@ import { canBookResource } from "./services/permissions";
 
 import BookingForm from "./BookingForm";
 
+// Lazy-load the fault-report modal — pulls in the firebase/storage
+// SDK + the rest of the maintenance subtree, which would bloat the
+// AssetDetailPanel chunk. We only need it when the user clicks the
+// Report Fault button, so dynamic() with ssr:false is the right tool.
+const ReportFaultModal = dynamic(
+  () => import("@/app/workspace/maintenance/ReportFaultModal"),
+  { ssr: false }
+);
+
 export default function AssetDetailPanel({
   selectedAsset,
   currentUserRole,
+  currentUser,
   onClose
 }) {
 
@@ -44,6 +56,7 @@ export default function AssetDetailPanel({
   const [custodianHistory, setCustodianHistory] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [showBookingForm, setShowBookingForm] = useState(false);
+  const [showFaultModal, setShowFaultModal] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // Re-render every 30s so the relative-time strings (conditionHistory
@@ -173,6 +186,18 @@ export default function AssetDetailPanel({
             onClick={() => setShowBookingForm(true)}
           >
             Book Resource
+          </button>
+        )}
+
+        {/* Report Fault — open to ANY signed-in user (Stage 4d). The
+            modal opens with the current asset pre-selected + locked. */}
+        {currentUser && (
+          <button
+            type="button"
+            className="asset-detail-report-fault-btn"
+            onClick={() => setShowFaultModal(true)}
+          >
+            Report Fault on this asset
           </button>
         )}
 
@@ -309,6 +334,14 @@ export default function AssetDetailPanel({
         <BookingForm
           resource={selectedAsset}
           closeModal={() => setShowBookingForm(false)}
+        />
+      )}
+
+      {showFaultModal && (
+        <ReportFaultModal
+          lockedResource={selectedAsset}
+          currentUser={currentUser}
+          closeModal={() => setShowFaultModal(false)}
         />
       )}
     </>

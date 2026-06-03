@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// GIMPA Resource Manager — Cloud Storage rules.
+//
+// Storage rules can't cross-check Firestore for parent-document
+// visibility, so "read" here is broader than the equivalent Firestore
+// rule on /faults/{id}. Acceptable for the institutional threat model;
+// anyone signed in is already trusted to see fault details once the
+// fault doc gates them in.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Default deny — every path must explicitly allow read/write.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Fault images (Stage 4d).
+    //
+    // Path shape: fault-images/{faultId}/{originalFilename}
+    //   - faultId matches the Firestore /faults/{faultId} doc id, so
+    //     cleanup can iterate one folder per deleted fault.
+    //   - filename is the upload name; the client may sanitize it
+    //     before passing.
+    //
+    // Read:    any signed-in user. (See note above.)
+    // Create:  any signed-in user, size < 10 MB, image/* content type.
+    //          Image presence is optional on the fault doc itself,
+    //          and the matching Firestore rule on /faults gates who
+    //          can create the parent fault.
+    // Update/
+    // Delete:  denied. Stage 4e+ may add admin-only delete on resolve.
+    match /fault-images/{faultId}/{filename} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow update, delete: if false;
+    }
+  }
+}

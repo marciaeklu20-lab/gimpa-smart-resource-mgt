@@ -167,7 +167,35 @@
 
 .asset-detail-book-btn {
   width: 100%;
+  margin-bottom: 10px;
+}
+
+/* Report Fault — secondary visual weight vs Book (outlined, not
+   filled), since it's a smaller-stakes action and we don't want it
+   to compete with the primary Book CTA. */
+.asset-detail-report-fault-btn {
+  width: 100%;
   margin-bottom: 18px;
+
+  background: #ffffff;
+  color: #003366;
+
+  border: 2px solid #003366;
+  border-radius: 12px;
+
+  padding: 10px 16px;
+
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.asset-detail-report-fault-btn:hover {
+  background: #003366;
+  color: #ffffff;
+  transform: translateY(-2px);
 }
 
 /* ---------------------------------------------------------------
