@@ -14,6 +14,7 @@ import BookingRequests from "@/app/workspace/resource-management/BookingRequests
 import Users from "@/app/workspace/admin-dashboard/Users";
 import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
+import Maintenance from "@/app/workspace/maintenance/Maintenance";
 
 import { PLATFORM_ADMINS } from "@/app/lib/roles";
 
@@ -146,6 +147,12 @@ export default function WorkspacePage() {
           {/* DASHBOARD — landing surface when sidebar = Dashboard */}
           {activeSidebar === "Dashboard" && (
             <Dashboard currentUser={currentUser} navigate={navigate} />
+          )}
+
+          {/* MAINTENANCE — Stage 4c scaffold; sub-tabs owned by the
+              Maintenance component itself, not the page's activeTab. */}
+          {activeSidebar === "Maintenance" && (
+            <Maintenance currentUser={currentUser} navigate={navigate} />
           )}
 
           {/* RESOURCE MANAGEMENT TABS */}

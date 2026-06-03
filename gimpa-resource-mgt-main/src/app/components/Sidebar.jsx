@@ -17,7 +17,7 @@ import app from "@/firebase/config";
 import { subscribeBookings } from "@/app/workspace/resource-management/services/subscribeBookings";
 import { isUnread } from "@/app/workspace/resource-management/services/isUnread";
 
-import { PLATFORM_ADMINS } from "@/app/lib/roles";
+import { PLATFORM_ADMINS, MAINTENANCE_ROLES } from "@/app/lib/roles";
 
 import { MdOutlineDashboard, MdNotificationsActive } from "react-icons/md";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
@@ -182,7 +182,12 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
     { name: "Dashboard", icon: <MdOutlineDashboard size={20} /> },
     { name: "Resource Management", icon: <GrResources size={20} /> },
     { name: "Chat", icon: <BsChatLeftDots size={20} /> },
-    { name: "Maintenance", icon: <FaTools size={20} /> },
+
+    // Maintenance visible only to super_admin + Maintenance Staff.
+    ...(MAINTENANCE_ROLES.includes(role)
+      ? [{ name: "Maintenance", icon: <FaTools size={20} /> }]
+      : []),
+
     { name: "Analytics", icon: <BsMenuButtonWide size={20} /> },
     { name: "AI Assistant", icon: <FaRobot size={20} /> },
 
