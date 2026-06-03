@@ -340,8 +340,10 @@ const createDemoAccount = async (account) => {
 // Stage 4a: every resource carries lifecycleStatus + condition +
 // location + (optional) custodian + acquisition metadata. The mix
 // below was chosen to demonstrate the system in a realistic state for
-// the exhibition demo:
-//   - 11 active (2 excellent / 5 good / 3 fair / 1 poor)
+// the exhibition demo. Stage 4b adds one resource per previously-
+// empty category (Furniture, Office Supplies, Tools, Other) so the
+// category-card row never has a "0" tile in the demo.
+//   - 15 active (2 excellent / 9 good / 3 fair / 1 poor)
 //   -  2 in_maintenance (poor)
 //   -  1 retired (out_of_service)
 //   -  1 disposed (out_of_service)
@@ -603,6 +605,80 @@ const DEMO_RESOURCES = [
     acquisitionCost: 120000,
     warrantyExpiry: null,
     vendor: "Toyota Ghana"
+  },
+  // -------- Furniture -----------------------------------------------
+  // Stage 4b: one resource per category that was previously empty, so
+  // the category-card row in the demo never shows a 0-count tile.
+  {
+    assetCode: "FRN-001",
+    resourceName: "Executive Office Chair Set",
+    category: "Furniture",
+    type: "Chairs",
+    description: "Ergonomic office chairs for staff offices.",
+    quantity: 10,
+    capacity: "",
+    lifecycleStatus: LIFECYCLE.ACTIVE,
+    condition: COND.GOOD,
+    location: { campus: "Main Campus", building: "GIMPA Block A", floor: "Floor 2", room: "Staff Offices" },
+    custodianEmail: "demo.facility@gimpa.edu.gh",
+    acquisitionDate: "2023-04-12",
+    acquisitionCost: 14500,
+    warrantyExpiry: "2025-04-12",
+    vendor: "Local Contractor"
+  },
+  // -------- Office Supplies & Stationery ----------------------------
+  {
+    assetCode: "OSS-001",
+    resourceName: "A4 Paper Reams",
+    category: "Office Supplies & Stationery",
+    type: "Paper Reams",
+    description: "Boxes of A4 printing paper for admin offices.",
+    quantity: 50,
+    capacity: "",
+    lifecycleStatus: LIFECYCLE.ACTIVE,
+    condition: COND.GOOD,
+    location: { campus: "Main Campus", building: "Stores Block", floor: "Ground", room: "Stationery Store" },
+    custodianEmail: "demo.facility@gimpa.edu.gh",
+    acquisitionDate: "2025-09-01",
+    acquisitionCost: 4200,
+    warrantyExpiry: null,
+    vendor: "Local Contractor"
+  },
+  // -------- Tools & Maintenance Equipment ---------------------------
+  {
+    assetCode: "TLS-001",
+    resourceName: "Maintenance Tool Kit",
+    category: "Tools & Maintenance Equipment",
+    type: "Tool Kits",
+    description: "Maintenance kit (drill, screwdrivers, multimeter, etc.).",
+    quantity: 1,
+    capacity: "",
+    lifecycleStatus: LIFECYCLE.ACTIVE,
+    condition: COND.GOOD,
+    location: { campus: "Main Campus", building: "Stores Block", floor: "Ground", room: "Workshop" },
+    custodianEmail: "demo.maintenance@gimpa.edu.gh",
+    acquisitionDate: "2024-01-20",
+    acquisitionCost: 8500,
+    warrantyExpiry: "2026-01-20",
+    vendor: "Local Contractor"
+  },
+  // -------- Other ---------------------------------------------------
+  {
+    assetCode: "OTH-001",
+    resourceName: "Branding Banner Set",
+    category: "Other",
+    type: "Event Banners",
+    description: "Roll-up branding banners for institutional events.",
+    quantity: 6,
+    capacity: "",
+    lifecycleStatus: LIFECYCLE.ACTIVE,
+    condition: COND.GOOD,
+    location: { campus: "Main Campus", building: "Stores Block", floor: "Ground", room: "Event Storage" },
+    custodianEmail: "demo.facility@gimpa.edu.gh",
+    acquisitionDate: "2024-06-10",
+    acquisitionCost: 5200,
+    warrantyExpiry: null,
+    vendor: "Local Contractor"
   }
 ];
 

@@ -3,48 +3,45 @@
 import React from "react";
 
 import {
-  canBookResource
-} from "../services/permissions";
-
-import {
-  isBookable,
-  lifecycleLabel
+  lifecycleLabel,
+  conditionLabel,
+  lifecyclePillStyle,
+  conditionPillStyle
 } from "@/app/lib/resourceMeta";
+
+// Short location string for the master table — building + room is
+// enough at a glance. The full breadcrumb (campus › building › floor ›
+// room) lives in the detail panel.
+const shortLocation = (loc) => {
+  if (!loc || typeof loc !== "object") return "—";
+  const parts = ["building", "room"]
+    .map((k) => (loc[k] || "").trim())
+    .filter(Boolean);
+  if (parts.length) return parts.join(" · ");
+  return (loc.campus || "").trim() || "—";
+};
 
 export default function ResourceTable({
   filteredResources,
-  currentUserRole,
-  setSelectedResource
+  selectedAssetId,
+  onSelectAsset
 }) {
 
   return (
 
     <div className="resource-table-container">
 
-      <table className="resource-table">
+      <table className="resource-table resource-table-master">
 
         <thead>
-
           <tr>
-
+            <th>Status</th>
+            <th>Name</th>
             <th>Asset Code</th>
-
-            <th>Resource Name</th>
-
-            <th>Category</th>
-
-            <th>Type</th>
-
-            <th>Quantity</th>
-
-            <th>Capacity</th>
-
-            <th>Description</th>
-
-            <th>Booking</th>
-
+            <th>Condition</th>
+            <th>Location</th>
+            <th>Custodian</th>
           </tr>
-
         </thead>
 
         <tbody>
@@ -52,76 +49,54 @@ export default function ResourceTable({
           {filteredResources.length === 0 ? (
 
             <tr>
-
-              <td
-                colSpan="8"
-                className="no-resources"
-              >
+              <td colSpan="6" className="no-resources">
                 No resources found
               </td>
-
             </tr>
 
           ) : (
 
-            filteredResources.map(
-              (resource) => (
+            filteredResources.map((resource) => {
 
-              <tr key={resource.id}>
+              const status = resource.lifecycleStatus || "active";
+              const condition = resource.condition || "good";
+              const isSelected = selectedAssetId === resource.id;
 
-                <td>
-                  {resource.assetCode}
-                </td>
+              return (
 
-                <td>
-                  {resource.resourceName}
-                </td>
+                <tr
+                  key={resource.id}
+                  className={`resource-row ${isSelected ? "resource-row-selected" : ""}`}
+                  onClick={() => onSelectAsset && onSelectAsset(resource.id)}
+                >
 
-                <td>
-                  {resource.category}
-                </td>
+                  <td>
+                    <span className={`pill ${lifecyclePillStyle(status)}`}>
+                      {lifecycleLabel(status)}
+                    </span>
+                  </td>
 
-                <td>
-                  {resource.type}
-                </td>
+                  <td className="resource-name">
+                    {resource.resourceName}
+                  </td>
 
-                <td>
-                  {resource.quantity || "-"}
-                </td>
+                  <td>{resource.assetCode}</td>
 
-                <td>
-                  {resource.capacity || "-"}
-                </td>
+                  <td>
+                    <span className={`pill ${conditionPillStyle(condition)}`}>
+                      {conditionLabel(condition)}
+                    </span>
+                  </td>
 
-                <td>
-                  {resource.description || "-"}
-                </td>
+                  <td>{shortLocation(resource.location)}</td>
 
-                <td>
+                  <td>{resource.custodianName || "—"}</td>
 
-                  {canBookResource(currentUserRole) && (
-                    isBookable(resource) ? (
-                      <button
-                        className="book-resource-btn"
-                        onClick={() => setSelectedResource(resource)}
-                      >
-                        Book
-                      </button>
-                    ) : (
-                      <span
-                        className="resource-status-unavailable"
-                        title={`Status: ${lifecycleLabel(resource.lifecycleStatus)}`}
-                      >
-                        {lifecycleLabel(resource.lifecycleStatus)}
-                      </span>
-                    )
-                  )}
+                </tr>
 
-                </td>
+              );
 
-              </tr>
-
-            ))
+            })
 
           )}
 

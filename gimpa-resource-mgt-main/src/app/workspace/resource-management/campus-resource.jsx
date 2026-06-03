@@ -2,7 +2,8 @@
 
 import React, {
   useState,
-  useEffect
+  useEffect,
+  useMemo
 } from "react";
 
 import {
@@ -21,13 +22,17 @@ import app from "@/firebase/config";
 
 import AddResourceForm from "./add-resource/AddResourceForm";
 
-import BookingForm from "./BookingForm";
-
 import CampusResourceControls from "./components/CampusResourceControls";
 
 import ResourceTable from "./components/ResourceTable";
 
+import CategoryCards from "./CategoryCards";
+
+import AssetDetailPanel from "./AssetDetailPanel";
+
 import "@/app/styles/workspace/campus-resource.css";
+import "@/app/styles/resource-management/resource-list.css";
+import "@/app/styles/resource-management/asset-master-detail.css";
 
 export default function CampusResource({
   userRole
@@ -37,40 +42,25 @@ export default function CampusResource({
 
   const auth = getAuth(app);
 
-  const [showModal, setShowModal] =
-    useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  const [resources, setResources] =
-    useState([]);
+  const [resources, setResources] = useState([]);
 
-  const [searchTerm, setSearchTerm] =
-    useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const [selectedCategory, setSelectedCategory] =
-    useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
-  const [selectedType, setSelectedType] =
-    useState("");
+  const [selectedType, setSelectedType] = useState("");
 
-  const [selectedResource, setSelectedResource] =
-    useState(null);
+  // Stage 4b: which row is highlighted in the master table and
+  // populating the detail panel on the right.
+  const [selectedAssetId, setSelectedAssetId] = useState(null);
 
-  const [currentUserRole, setCurrentUserRole] =
-    useState(null);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
 
   const allowedRoles = [
     "Stores/Inventory Officer",
     "Facility/Estate Officer"
-  ];
-
-  const categories = [
-    "Facilities",
-    "Electronics & Electrical Equipment",
-    "Furniture",
-    "Vehicles & Transport",
-    "Office Supplies & Stationery",
-    "Tools & Maintenance Equipment",
-    "Other"
   ];
 
   const fetchResources = async () => {
@@ -81,12 +71,10 @@ export default function CampusResource({
         collection(db, "resources")
       );
 
-      const data = snapshot.docs.map(
-        (doc) => ({
-          id: doc.id,
-          ...doc.data()
-        })
-      );
+      const data = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
 
       setResources(data);
 
@@ -107,27 +95,16 @@ export default function CampusResource({
 
       try {
 
-        const firebaseUser =
-          auth.currentUser;
+        const firebaseUser = auth.currentUser;
 
-        if (!firebaseUser) {
-          return;
-        }
+        if (!firebaseUser) return;
 
         const userDoc = await getDoc(
-          doc(
-            db,
-            "users",
-            firebaseUser.uid
-          )
+          doc(db, "users", firebaseUser.uid)
         );
 
         if (userDoc.exists()) {
-
-          setCurrentUserRole(
-            userDoc.data().role
-          );
-
+          setCurrentUserRole(userDoc.data().role);
         }
 
       } catch (error) {
@@ -148,80 +125,71 @@ export default function CampusResource({
 
   }, []);
 
-  const filteredResources =
-    resources.filter((resource) => {
+  // Clear the type filter whenever the category changes — a type
+  // selected under category A is meaningless under category B.
+  useEffect(() => {
+    setSelectedType("");
+  }, [selectedCategory]);
 
-      const search =
-        searchTerm.toLowerCase();
+  const filteredResources = useMemo(() => {
+
+    const search = searchTerm.toLowerCase();
+
+    return resources.filter((resource) => {
 
       const matchesSearch =
-
-        resource.assetCode
-          ?.toLowerCase()
-          .includes(search)
-
-        ||
-
-        resource.resourceName
-          ?.toLowerCase()
-          .includes(search)
-
-        ||
-
-        resource.category
-          ?.toLowerCase()
-          .includes(search)
-
-        ||
-
-        resource.type
-          ?.toLowerCase()
-          .includes(search);
+        resource.assetCode?.toLowerCase().includes(search)
+        || resource.resourceName?.toLowerCase().includes(search)
+        || resource.category?.toLowerCase().includes(search)
+        || resource.type?.toLowerCase().includes(search);
 
       const matchesCategory =
-
-        !selectedCategory ||
-
-        resource.category ===
-          selectedCategory;
+        !selectedCategory
+        || resource.category === selectedCategory;
 
       const matchesType =
+        !selectedType
+        || resource.type === selectedType;
 
-        !selectedType ||
-
-        resource.type ===
-          selectedType;
-
-      return (
-        matchesSearch &&
-        matchesCategory &&
-        matchesType
-      );
+      return matchesSearch && matchesCategory && matchesType;
 
     });
 
-  const typesForCategory = [
+  }, [resources, searchTerm, selectedCategory, selectedType]);
+
+  // If the currently-selected asset gets filtered out (user changes
+  // category / search), clear the panel so we're not displaying an
+  // asset that isn't in the visible list any more.
+  useEffect(() => {
+    if (!selectedAssetId) return;
+    const stillVisible = filteredResources.some(
+      (r) => r.id === selectedAssetId
+    );
+    if (!stillVisible) {
+      setSelectedAssetId(null);
+    }
+  }, [filteredResources, selectedAssetId]);
+
+  const typesForCategory = useMemo(() => [
 
     ...new Set(
 
       resources
 
-        .filter(
-
-          (r) =>
-
-            !selectedCategory ||
-
-            r.category ===
-              selectedCategory
-
+        .filter((r) =>
+          !selectedCategory
+          || r.category === selectedCategory
         )
 
         .map((r) => r.type)
 
     )
 
-  ];
+  ], [resources, selectedCategory]);
+
+  const selectedAsset = selectedAssetId
+    ? resources.find((r) => r.id === selectedAssetId) || null
+    : null;
 
   return (
 
@@ -230,10 +198,8 @@ export default function CampusResource({
       <div className="campus-resource-header">
 
         <p className="campus-resource-subtitle">
-
           Manage and view all resources
           available across the institution
-
         </p>
 
       </div>
@@ -241,9 +207,6 @@ export default function CampusResource({
       <CampusResourceControls
         allowedRoles={allowedRoles}
         userRole={userRole}
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
         selectedType={selectedType}
         setSelectedType={setSelectedType}
         searchTerm={searchTerm}
@@ -252,38 +215,45 @@ export default function CampusResource({
         setShowModal={setShowModal}
       />
 
-      <ResourceTable
-        filteredResources={filteredResources}
-        currentUserRole={currentUserRole}
-        setSelectedResource={setSelectedResource}
+      <CategoryCards
+        resources={resources}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
       />
+
+      <div className="master-detail-layout">
+
+        <div className="master-pane">
+
+          <ResourceTable
+            filteredResources={filteredResources}
+            selectedAssetId={selectedAssetId}
+            onSelectAsset={setSelectedAssetId}
+          />
+
+        </div>
+
+        <div
+          className={`detail-pane ${selectedAsset ? "detail-pane-open" : ""}`}
+        >
+
+          <AssetDetailPanel
+            selectedAsset={selectedAsset}
+            currentUserRole={currentUserRole}
+            onClose={() => setSelectedAssetId(null)}
+          />
+
+        </div>
+
+      </div>
 
       {showModal && (
 
         <AddResourceForm
-
           closeModal={() => {
-
             setShowModal(false);
-
             fetchResources();
-
           }}
-
-        />
-
-      )}
-
-      {selectedResource && (
-
-        <BookingForm
-
-          resource={selectedResource}
-
-          closeModal={() =>
-            setSelectedResource(null)
-          }
-
         />
 
       )}
