@@ -15,6 +15,7 @@ const approvalRequiredRoles = [
   "Maintenance Staff",
   "Stores/Inventory Officer",
   "Facility/Estate Officer",
+  "Logistics Officer",
   "Procurement Officer",
   "IT Officer",
   "Higher Level Management"

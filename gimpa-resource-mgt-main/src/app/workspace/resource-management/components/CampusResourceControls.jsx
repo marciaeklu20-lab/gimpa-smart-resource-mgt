@@ -4,6 +4,10 @@ import React from "react";
 
 import { FaSearch } from "react-icons/fa";
 
+// Stage 4e.7: allowedRoles is now derived from RESOURCE_MANAGERS +
+// super_admin upstream. Anyone outside that list — including
+// Maintenance Staff / Maintenance Admin — sees the page read-only
+// and the button stays hidden.
 export default function CampusResourceControls({
   allowedRoles,
   userRole,

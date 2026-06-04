@@ -30,6 +30,7 @@ import {
 } from "@/app/lib/resourceMeta";
 
 import { canBookResource } from "./services/permissions";
+import { responsibleRoleForCategory } from "@/app/lib/categoryResponsibility";
 
 import BookingForm from "./BookingForm";
 
@@ -202,6 +203,19 @@ export default function AssetDetailPanel({
         )}
 
         <div className="asset-detail-fields">
+
+          {/* Stage 4e.7: who owns this resource for additions, edits,
+              and booking-approval routing. Prefer the persisted
+              responsibleRole; fall back to deriving from category for
+              pre-4e.7 records. */}
+          <div className="asset-detail-field">
+            <label>Managed by</label>
+            <div>
+              {selectedAsset.responsibleRole
+                || responsibleRoleForCategory(selectedAsset.category)
+                || "—"}
+            </div>
+          </div>
 
           <div className="asset-detail-field">
             <label>Location</label>

@@ -43,6 +43,7 @@ export default function RoleSelector({
     { value: "Maintenance Staff", label: "Maintenance Staff" },
     { value: "Stores/Inventory Officer", label: "Stores/Inventory Officer" },
     { value: "Facility/Estate Officer", label: "Facility/Estate Officer" },
+    { value: "Logistics Officer", label: "Logistics Officer" },
     { value: "Procurement Officer", label: "Procurement Officer" },
     { value: "Higher Level Management", label: "Higher Level Management" }
   ];

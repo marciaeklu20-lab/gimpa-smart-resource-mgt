@@ -84,21 +84,29 @@ export default function BookingTable({
     return () => cancelAnimationFrame(raf);
   }, [expandedId]);
 
-  const handleApprove = async (bookingId) => {
+  // Stage 4e.7: approveBooking/rejectBooking throw NOT_ROUTED:<roles>
+  // when the current user isn't allowed to act on this booking under
+  // the new approvalRoutedTo partitioning. Surface a clear message
+  // rather than silently swallowing the error.
+  const handleApproveOrReject = async (action, bookingId) => {
     try {
-      await approveBooking(bookingId, currentUser);
+      await action(bookingId, currentUser);
     } catch (error) {
       console.error(error);
+      const code = error?.message || "";
+      if (code.startsWith("NOT_ROUTED:")) {
+        const route = code.slice("NOT_ROUTED:".length);
+        alert(
+          `You're not authorized to decide this booking — it routes to: ${route}.`
+        );
+      } else {
+        alert("Could not update the booking. Please try again.");
+      }
     }
   };
 
-  const handleReject = async (bookingId) => {
-    try {
-      await rejectBooking(bookingId, currentUser);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const handleApprove = (bookingId) => handleApproveOrReject(approveBooking, bookingId);
+  const handleReject = (bookingId) => handleApproveOrReject(rejectBooking, bookingId);
 
   const toggleExpanded = (booking, e) => {
     // Don't toggle when clicking action buttons inside the row.

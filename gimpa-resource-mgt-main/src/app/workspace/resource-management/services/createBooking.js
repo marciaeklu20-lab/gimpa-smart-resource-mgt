@@ -13,8 +13,24 @@ import {
 import app from "@/firebase/config";
 
 import { getBookingRecipients } from "./getBookingRecipients";
+import { responsibleRoleForCategory } from "@/app/lib/categoryResponsibility";
 
 const db = getFirestore(app);
+
+// Stage 4e.7: who needs to see/approve a booking is now derived from
+// the resource's responsibleRole — the category-partitioned owner —
+// plus Secretariat Admin and super_admin as the always-on escalation
+// path. Denormalized onto the booking doc so subscribeBookings can
+// filter with a single array-contains query.
+const approvalRouteFor = (resource) => {
+  const route = ["Secretariat Admin", "super_admin"];
+  const responsible = resource?.responsibleRole
+    || responsibleRoleForCategory(resource?.category);
+  if (responsible && !route.includes(responsible)) {
+    route.unshift(responsible);
+  }
+  return route;
+};
 
 // Two ISO-string time ranges overlap iff each starts strictly before
 // the other ends. Treats touching boundaries (A.end === B.start) as
@@ -86,10 +102,21 @@ export const createBooking = async ({
     requesterDepartment: user.department
   });
 
+  // Stage 4e.7: approvalRoutedTo replaces visibleToRoles as the
+  // routing-and-permission field. Snapshot the resource's category
+  // so the listener / rules / approve-button never have to round-trip
+  // to /resources.
+  const approvalRoutedTo = approvalRouteFor(liveResource);
+
   await addDoc(collection(db, "bookings"), {
 
     resourceId: resource.assetCode,
     resourceName: resource.resourceName || `${resource.category} (${resource.assetCode})`,
+    resourceCategory: liveResource.category || resource.category || null,
+    resourceResponsibleRole:
+      liveResource.responsibleRole
+      || responsibleRoleForCategory(liveResource.category)
+      || null,
 
     requesterId: user.uid,
     requesterName: user.fullName,
@@ -102,11 +129,16 @@ export const createBooking = async ({
     approvalRoute:
       routing.approvalRoute,
 
+    // Legacy Stage 4 routing fields. Kept so any orphaned reader still
+    // works, but subscribeBookings/approveBooking now key off
+    // approvalRoutedTo. Safe to remove once nothing references them.
     visibleToRoles:
       routing.targetRoles,
 
     visibleToDepartment:
       routing.department,
+
+    approvalRoutedTo,
 
     purpose,
     startDate,

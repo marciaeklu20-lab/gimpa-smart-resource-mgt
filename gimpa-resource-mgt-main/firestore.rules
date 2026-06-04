@@ -97,6 +97,43 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // Stage 4e.7: Resource responsibility partitioning
+    // ---------------------------------------------------------------
+    // myCategories() — categories the current user manages, derived
+    // from role. Mirrors ROLE_TO_CATEGORIES in
+    // src/app/lib/categoryResponsibility.js. Rules can't import JS, so
+    // keep this in sync by hand.
+    function myCategories() {
+      return myRole() == "Facility/Estate Officer"
+        ? ["Facilities", "Furniture"]
+      : myRole() == "IT Officer"
+        ? ["Electronics & Electrical Equipment"]
+      : myRole() == "Logistics Officer"
+        ? ["Vehicles & Transport"]
+      : myRole() == "Stores/Inventory Officer"
+        ? ["Office Supplies & Stationery",
+           "Tools & Maintenance Equipment",
+           "Other"]
+      : [];
+    }
+
+    function canManageCategory(category) {
+      return category in myCategories();
+    }
+
+    // Mirrors RESOURCE_MANAGERS in src/app/lib/roles.js. Anyone in
+    // this list manages a category slice; super_admin is handled
+    // separately via isAdmin().
+    function isResourceManager() {
+      return myRole() in [
+        "Facility/Estate Officer",
+        "IT Officer",
+        "Logistics Officer",
+        "Stores/Inventory Officer"
+      ];
+    }
+
+    // ---------------------------------------------------------------
     // users/{uid}
     //
     // Anyone signed in can create their own doc at signup. After that,
@@ -157,13 +194,29 @@ service cloud.firestore {
 
       allow read: if isApproved();
 
+      // Stage 4e.7: only platform admins (super_admin / Secretariat /
+      // IT Officer-as-admin) OR a resource manager creating within
+      // their own category may add a resource. The responsibleRole
+      // field must match the requester's role so a manager can't
+      // mislabel a resource as belonging to a different team.
       allow create: if isApproved() && (
-        isAdmin() || isOperationalApprover()
+        isAdmin()
+        || (
+          isResourceManager()
+          && canManageCategory(request.resource.data.category)
+          && request.resource.data.responsibleRole == myRole()
+        )
       );
 
+      // Update: platform admins go through; resource managers can
+      // edit ONLY resources in their own categories; Maintenance Staff
+      // (Stage 4a) retain the narrow lifecycleStatus/condition patch.
       allow update: if isApproved() && (
         isAdmin()
-        || isOperationalApprover()
+        || (
+          isResourceManager()
+          && canManageCategory(resource.data.category)
+        )
         || (
           isMaintenanceStaff()
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -171,8 +224,13 @@ service cloud.firestore {
         )
       );
 
+      // Delete: platform admins OR the responsible resource manager.
       allow delete: if isApproved() && (
-        isAdmin() || isOperationalApprover()
+        isAdmin()
+        || (
+          isResourceManager()
+          && canManageCategory(resource.data.category)
+        )
       );
     }
 
@@ -202,7 +260,10 @@ service cloud.firestore {
     match /resources/{assetCode}/conditionHistory/{entryId} {
       allow read: if isApproved();
       allow create: if isApproved() && (
-        isAdmin() || isMaintenanceStaff() || isOperationalApprover()
+        isAdmin()
+        || isMaintenanceStaff()
+        || isOperationalApprover()
+        || isResourceManager()
       );
       allow update, delete: if false;
     }
@@ -210,7 +271,10 @@ service cloud.firestore {
     match /resources/{assetCode}/lifecycleHistory/{entryId} {
       allow read: if isApproved();
       allow create: if isApproved() && (
-        isAdmin() || isMaintenanceStaff() || isOperationalApprover()
+        isAdmin()
+        || isMaintenanceStaff()
+        || isOperationalApprover()
+        || isResourceManager()
       );
       allow update, delete: if false;
     }
@@ -218,7 +282,10 @@ service cloud.firestore {
     match /resources/{assetCode}/custodianHistory/{entryId} {
       allow read: if isApproved();
       allow create: if isApproved() && (
-        isAdmin() || isMaintenanceStaff() || isOperationalApprover()
+        isAdmin()
+        || isMaintenanceStaff()
+        || isOperationalApprover()
+        || isResourceManager()
       );
       allow update, delete: if false;
     }
@@ -251,6 +318,8 @@ service cloud.firestore {
       function canSeeBooking() {
         return resource.data.requesterId == request.auth.uid
           || myRole() in resource.data.visibleToRoles
+          || (resource.data.approvalRoutedTo is list
+              && myRole() in resource.data.approvalRoutedTo)
           || isAdmin()
           || isGlobalApprover();
       }
@@ -272,15 +341,22 @@ service cloud.firestore {
       allow read: if isApproved() && (
         resource.data.requesterId == request.auth.uid
         || myRole() in resource.data.visibleToRoles
+        || (resource.data.approvalRoutedTo is list
+            && myRole() in resource.data.approvalRoutedTo)
         || isAdmin()
         || isGlobalApprover()
       );
 
+      // Stage 4e.7: approve/reject now gates on approvalRoutedTo,
+      // the partitioned routing list. Platform admins keep override
+      // access. The legacy visibleToRoles check is kept inline so
+      // pre-4e.7 bookings with no approvalRoutedTo still work.
       allow update: if isApproved() && (
         (
           (
             isAdmin()
-            || isGlobalApprover()
+            || (resource.data.approvalRoutedTo is list
+                && myRole() in resource.data.approvalRoutedTo)
             || myRole() in resource.data.visibleToRoles
           )
           && request.resource.data.status in ["approved", "rejected"]

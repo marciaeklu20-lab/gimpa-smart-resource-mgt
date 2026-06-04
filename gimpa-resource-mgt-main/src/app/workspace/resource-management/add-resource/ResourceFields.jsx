@@ -19,6 +19,7 @@ export default function ResourceFields({
   generateCode,
   assetCode,
   selectedType,
+  responsibleRole = "",
 
   resourceName,
   setResourceName,
@@ -83,6 +84,23 @@ export default function ResourceFields({
           ))}
 
         </select>
+        {Object.keys(categories).length === 0 && (
+          <div className="form-hint">
+            No categories available — you don&apos;t manage any resource type.
+          </div>
+        )}
+      </div>
+
+      {/* Responsible Role (Stage 4e.7) — auto-derived from category,
+          displayed read-only so the operator can see who will own the
+          resource going forward. */}
+      <div className="form-group">
+        <label>Responsible Role</label>
+        <input
+          type="text"
+          value={responsibleRole || "— select a category —"}
+          readOnly
+        />
       </div>
 
       {/* Type */}

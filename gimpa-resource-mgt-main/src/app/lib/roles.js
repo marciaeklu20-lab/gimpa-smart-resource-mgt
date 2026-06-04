@@ -26,6 +26,18 @@ export const GLOBAL_APPROVERS = [
   "Higher Level Management"
 ];
 
+// Stage 4e.7: roles that own ("manage") a slice of the resource
+// catalogue, partitioned by category. The mapping itself lives in
+// categoryResponsibility.js — keep that file in sync with this list.
+// These roles can add/edit resources in THEIR categories only and
+// approve bookings on those resources.
+export const RESOURCE_MANAGERS = [
+  "Facility/Estate Officer",
+  "IT Officer",
+  "Logistics Officer",
+  "Stores/Inventory Officer"
+];
+
 // Anyone who sees every booking regardless of visibleToRoles /
 // visibleToDepartment routing. Used by subscribeBookings.js and the
 // Dashboard quick-stats listeners.

@@ -246,3 +246,41 @@
 
   box-shadow: 0 10px 35px rgba(0,0,0,0.2);
 }
+/* ---------------------------------------------------------------
+   Stage 4e.7 — Responsibility filter tabs
+--------------------------------------------------------------- */
+
+.responsibility-filter-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 12px 0 8px;
+
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.responsibility-filter-tab {
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.responsibility-filter-tab:hover {
+  color: #0f172a;
+}
+
+.responsibility-filter-tab.active {
+  background: #ffffff;
+  color: #003366;
+  box-shadow: 0 1px 3px rgba(0, 51, 102, 0.12);
+}

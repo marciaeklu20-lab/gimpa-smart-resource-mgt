@@ -84,11 +84,14 @@ export const subscribeBookings = ({ user, onUpdate }) => {
     emit();
   };
 
+  // Stage 4e.7: subscribe via approvalRoutedTo — the partitioned
+  // routing list. visibleToRoles is left in place on existing data for
+  // backwards compatibility but is no longer used as a filter.
   const unsubVisible = onSnapshot(
     query(
       collection(db, "bookings"),
       where(
-        "visibleToRoles",
+        "approvalRoutedTo",
         "array-contains",
         user.role
       )

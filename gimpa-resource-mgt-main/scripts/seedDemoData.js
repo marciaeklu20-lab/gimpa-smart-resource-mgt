@@ -69,6 +69,34 @@ const GLOBAL_APPROVERS = [
   "super_admin"
 ];
 
+// Stage 4e.7: mirror of src/app/lib/categoryResponsibility.js. The
+// React tree can't be imported into this Node CommonJS script, so the
+// mapping is duplicated by hand. Keep in sync.
+const CATEGORY_RESPONSIBILITY = {
+  "Facilities":                         "Facility/Estate Officer",
+  "Electronics & Electrical Equipment": "IT Officer",
+  "Vehicles & Transport":               "Logistics Officer",
+  "Furniture":                          "Facility/Estate Officer",
+  "Office Supplies & Stationery":       "Stores/Inventory Officer",
+  "Tools & Maintenance Equipment":      "Stores/Inventory Officer",
+  "Other":                              "Stores/Inventory Officer"
+};
+
+const responsibleRoleForCategory = (category) =>
+  CATEGORY_RESPONSIBILITY[category] || null;
+
+// approvalRoutedTo = [responsible role for the resource's category,
+// Secretariat Admin, super_admin]. Denormalized for query efficiency
+// in subscribeBookings.
+const approvalRouteForCategory = (category) => {
+  const route = ["Secretariat Admin", "super_admin"];
+  const responsible = responsibleRoleForCategory(category);
+  if (responsible && !route.includes(responsible)) {
+    route.unshift(responsible);
+  }
+  return route;
+};
+
 // Stage 4a lifecycle / condition enums — mirrors
 // src/app/lib/resourceMeta.js. Kept here as raw strings because the
 // seed runs under Node CommonJS and can't import from the ES-module
@@ -347,6 +375,20 @@ const DEMO_ACCOUNTS = [
       role: "Maintenance Staff",
       department: "IT Maintenance",
       staffID: "STF-DEMO-006",
+      approved: true,
+      needsApproval: false
+    }
+  },
+  // Stage 4e.7: Logistics Officer — owns the Vehicles & Transport
+  // category. They can add/edit vehicle resources and approve
+  // bookings on them.
+  {
+    email: "demo.logistics@gimpa.edu.gh",
+    fullName: "Demo Logistics Officer",
+    userDoc: {
+      role: "Logistics Officer",
+      department: "Transport & Logistics",
+      staffID: "STF-DEMO-007",
       approved: true,
       needsApproval: false
     }
@@ -787,6 +829,11 @@ const seedResources = async (accountsByEmail, superAdminActor) => {
       warrantyExpiry: toDateOrNull(r.warrantyExpiry),
       vendor: r.vendor || null,
 
+      // Stage 4e.7: category responsibility partitioning. Derived
+      // here so every seeded resource lines up with the rules' write
+      // gate (request.resource.data.responsibleRole == myRole()).
+      responsibleRole: responsibleRoleForCategory(r.category),
+
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -869,6 +916,8 @@ const buildBooking = ({
   return {
     resourceId: resource.assetCode,
     resourceName: resource.resourceName,
+    resourceCategory: resource.category,
+    resourceResponsibleRole: responsibleRoleForCategory(resource.category),
 
     requesterId: requester.uid,
     requesterName: requester.fullName,
@@ -879,6 +928,10 @@ const buildBooking = ({
     approvalRoute: routing.approvalRoute,
     visibleToRoles: routing.visibleToRoles,
     visibleToDepartment: routing.visibleToDepartment,
+
+    // Stage 4e.7: partitioned approval routing. subscribeBookings +
+    // approveBooking + the bookings update rule all key off this list.
+    approvalRoutedTo: approvalRouteForCategory(resource.category),
 
     purpose,
     startDate: startDate.toISOString(),

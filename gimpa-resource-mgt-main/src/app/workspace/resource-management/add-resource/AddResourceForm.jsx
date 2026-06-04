@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ResourceFields from "./ResourceFields";
 import { IoCloseOutline } from "react-icons/io5";
 import "@/app/styles/workspace/add-resource.css";
@@ -24,6 +24,13 @@ import {
   DEFAULT_LIFECYCLE_STATUS,
   DEFAULT_CONDITION
 } from "@/app/lib/resourceMeta";
+
+import {
+  responsibleRoleForCategory,
+  categoriesForRole,
+  isResourceManager,
+  ALL_CATEGORIES
+} from "@/app/lib/categoryResponsibility";
 
 export default function AddResourceForm({ closeModal }) {
 
@@ -179,6 +186,39 @@ export default function AddResourceForm({ closeModal }) {
     "Other": []
   };
 
+  // Stage 4e.7: categories the current user is allowed to register.
+  // super_admin sees everything; resource managers (Facility, IT,
+  // Logistics, Stores) see only their slice; nobody else can submit
+  // the form. The dropdown is filtered to this subset so the picker
+  // never offers a category the user can't actually use.
+  const role = currentUser?.role;
+  const allowedCategoryKeys = useMemo(() => {
+    if (!role) return [];
+    if (role === "super_admin") return ALL_CATEGORIES;
+    if (isResourceManager(role)) return categoriesForRole(role);
+    return [];
+  }, [role]);
+
+  const canSubmitResource = allowedCategoryKeys.length > 0;
+
+  // Build a filtered categories map for the picker so a user can't
+  // type around the gate by inspecting the DOM.
+  const allowedCategories = useMemo(() => {
+    const out = {};
+    for (const key of allowedCategoryKeys) {
+      if (Object.prototype.hasOwnProperty.call(categories, key)) {
+        out[key] = categories[key];
+      }
+    }
+    return out;
+  }, [allowedCategoryKeys]);
+
+  // Auto-derived from category — displayed read-only and persisted on
+  // the resource doc. Empty string when no category has been picked.
+  const derivedResponsibleRole = category
+    ? (responsibleRoleForCategory(category) || "")
+    : "";
+
   const categoryCodes = {
     "Facilities": "01",
     "Electronics & Electrical Equipment": "02",
@@ -279,6 +319,11 @@ export default function AddResourceForm({ closeModal }) {
   const handleSubmit = async (e) => {
   e.preventDefault();
 
+  if (!canSubmitResource) {
+    alert("You don't have permission to add resources.");
+    return;
+  }
+
   if (!assetCode) {
     alert("Please generate an asset code first.");
     return;
@@ -286,6 +331,11 @@ export default function AddResourceForm({ closeModal }) {
 
   if (!resourceName || !resourceName.trim()) {
     alert("Resource name is required.");
+    return;
+  }
+
+  if (!allowedCategoryKeys.includes(category)) {
+    alert("You can only add resources for the categories you manage.");
     return;
   }
 
@@ -321,6 +371,10 @@ export default function AddResourceForm({ closeModal }) {
       acquisitionCost: Number.isFinite(costNumber) ? costNumber : null,
       warrantyExpiry: warrantyExpiryObj,
       vendor: vendor.trim() || null,
+
+      // Stage 4e.7: derived from category — owned by the responsible
+      // role. Read-only after creation (transfer flow is 4h).
+      responsibleRole: responsibleRoleForCategory(category) || null,
 
       createdAt: new Date()
     });
@@ -399,17 +453,27 @@ export default function AddResourceForm({ closeModal }) {
 
         </div>
 
+        {currentUser && !canSubmitResource && (
+          <div className="add-resource-denied" role="alert">
+            You don&apos;t have permission to add resources. Adding resources
+            requires a Resource Manager role (Facility/Estate Officer,
+            IT Officer, Logistics Officer, or Stores/Inventory Officer)
+            or super_admin.
+          </div>
+        )}
+
         <form className="add-resource-form" onSubmit={handleSubmit}>
 
           <ResourceFields
             category={category}
             types={types}
-            categories={categories}
+            categories={allowedCategories}
             handleCategoryChange={handleCategoryChange}
             handleTypeChange={handleTypeChange}
             generateCode={generateCode}
             assetCode={assetCode}
             selectedType={selectedType}
+            responsibleRole={derivedResponsibleRole}
 
             resourceName={resourceName}
             setResourceName={setResourceName}
@@ -445,7 +509,14 @@ export default function AddResourceForm({ closeModal }) {
             setVendor={setVendor}
             />
 
-          <button className="submit-resource-btn" type="submit">
+          <button
+            className="submit-resource-btn"
+            type="submit"
+            disabled={!canSubmitResource}
+            title={canSubmitResource
+              ? ""
+              : "You don't have permission to add resources"}
+          >
             Save Resource
           </button>
 
