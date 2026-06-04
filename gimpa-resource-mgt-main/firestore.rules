@@ -349,6 +349,19 @@ service cloud.firestore {
           || isMaintenanceStaff();
       }
 
+      // Mirrors the bookings chat-metadata pattern (see bookings rule
+      // above). Lets sendFaultMessage's writeBatch stamp lastMessageAt
+      // etc. without granting full update access to non-maintenance
+      // viewers.
+      function isFaultChatMetadataOnlyUpdate() {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly([
+            "lastMessageAt",
+            "lastMessageAuthorId",
+            "lastReadByUser"
+          ]);
+      }
+
       allow read: if isApproved() && canSeeFault();
 
       allow create: if isApproved()
@@ -359,8 +372,20 @@ service cloud.firestore {
         && request.resource.data.description.size() > 0
         && request.resource.data.description.size() <= 2000;
 
+      // TWO branches:
+      //   (a) workflow transitions — admin / Maintenance Staff can do
+      //       arbitrary updates (status flips, resolutionNotes, etc.).
+      //       Stage 4e.
+      //   (b) chat metadata — anyone with parent-fault visibility can
+      //       update ONLY {lastMessageAt, lastMessageAuthorId,
+      //       lastReadByUser} so reporters can send chat messages
+      //       without being granted full update access.
       allow update: if isApproved() && (
-        isAdmin() || isMaintenanceStaff()
+        (isAdmin() || isMaintenanceStaff())
+        || (
+          canSeeFault()
+          && isFaultChatMetadataOnlyUpdate()
+        )
       );
 
       allow delete: if isAdmin();
@@ -402,6 +427,45 @@ service cloud.firestore {
         || isMaintenanceStaff()
         || request.resource.data.changedBy.uid == request.auth.uid
       );
+
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // faults/{faultId}/messages/{messageId}  (Stage 4e)
+    //
+    // Per-fault chat thread. Same visibility model as the parent fault:
+    // reporter, anyone whose role is in routedToRoles, admin, or
+    // Maintenance Staff.
+    //
+    // Read:    matches parent fault visibility (one extra get()).
+    // Create:  matches parent visibility AND authorId == auth.uid AND
+    //          text is a non-empty string ≤ 1000 chars. Kept in sync
+    //          with MAX_MESSAGE_LENGTH in sendFaultMessage.js.
+    // Update/
+    // Delete:  denied — messages are immutable.
+    // ---------------------------------------------------------------
+    match /faults/{faultId}/messages/{messageId} {
+
+      function parentFaultMsg() {
+        return get(/databases/$(database)/documents/faults/$(faultId)).data;
+      }
+
+      function canSeeParentFaultMsg() {
+        return parentFaultMsg().reporterId == request.auth.uid
+          || myRole() in parentFaultMsg().routedToRoles
+          || isAdmin()
+          || isMaintenanceStaff();
+      }
+
+      allow read: if isApproved() && canSeeParentFaultMsg();
+
+      allow create: if isApproved()
+        && canSeeParentFaultMsg()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
 
       allow update, delete: if false;
     }

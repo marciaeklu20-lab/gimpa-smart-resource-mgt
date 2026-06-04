@@ -37,7 +37,7 @@ const STATUS_LABEL = {
   acknowledged: "Acknowledged",
   in_progress:  "In Progress",
   resolved:     "Resolved",
-  rejected:     "Rejected"
+  closed:       "Closed"
 };
 
 export default function FaultsList({ navigate }) {
@@ -225,6 +225,7 @@ export default function FaultsList({ navigate }) {
           >
             <FaultDetailPanel
               selectedFault={selectedFault}
+              currentUser={currentUser}
               navigate={navigate}
               onClose={() => setSelectedFaultId(null)}
             />

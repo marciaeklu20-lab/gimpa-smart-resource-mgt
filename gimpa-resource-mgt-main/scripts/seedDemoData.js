@@ -1108,7 +1108,28 @@ const DEMO_FAULTS = [
       "Lens has a hairline crack — projected image now has a visible " +
       "dark line across the right edge. Photo attached.",
     severity: "major",
-    imageUrl: "https://placehold.co/600x400/png?text=Cracked+Lens"
+    imageUrl: "https://placehold.co/600x400/png?text=Cracked+Lens",
+    // Stage 4e: pre-seeded chat thread on the cracked-lens fault so
+    // reviewers see a live conversation on first load. Last message
+    // is intentionally from maintenance (not the reporter) so future
+    // unread-badge logic has something to surface for the lecturer.
+    messages: [
+      {
+        authorEmail: "demo.lecturer@gimpa.edu.gh",
+        text:
+          "I noticed this during this morning's lecture — the projection " +
+          "now has a dark line down the right edge. Is this a lens issue " +
+          "or the panel?",
+        minutesAgo: 90
+      },
+      {
+        authorEmail: "demo.maintenance@gimpa.edu.gh",
+        text:
+          "Thanks for the photo — that does look like a lens crack. We'll " +
+          "bring it in for inspection and let you know if it needs a swap.",
+        minutesAgo: 30
+      }
+    ]
   }
 ];
 
@@ -1179,6 +1200,65 @@ const seedFaults = async (accountsByEmail) => {
     batch.set(faultRef, faultData);
     batch.set(historyRef, historyData);
     await batch.commit();
+
+    // Stage 4e: optional pre-seeded chat thread (currently only on
+    // the cracked-lens fault). Written in a second batch since the
+    // parent fault must exist first for the rules update branch.
+    if (Array.isArray(f.messages) && f.messages.length > 0) {
+      const now = Date.now();
+      const tsAgo = (minutesAgo) =>
+        admin.firestore.Timestamp.fromMillis(now - minutesAgo * 60 * 1000);
+
+      const resolvedMessages = f.messages
+        .map((m) => {
+          const author = accountsByEmail[m.authorEmail];
+          if (!author) {
+            console.warn(
+              `  ! skipping chat message: author ${m.authorEmail} ` +
+              `not in seeded accounts`
+            );
+            return null;
+          }
+          return {
+            authorId: author.uid,
+            authorName: author.fullName,
+            authorRole: author.userDoc.role,
+            text: m.text,
+            createdAt: tsAgo(m.minutesAgo)
+          };
+        })
+        .filter(Boolean);
+
+      if (resolvedMessages.length > 0) {
+        const chatBatch = db.batch();
+        for (const m of resolvedMessages) {
+          const mref = faultRef.collection("messages").doc();
+          chatBatch.set(mref, m);
+        }
+
+        // Stamp parent-fault metadata so the future-fault-unread
+        // pattern has hydrated fields to read. lastReadByUser carries
+        // each author's own message time — they implicitly "read"
+        // what they wrote, mirroring sendFaultMessage's batch.
+        const latest = resolvedMessages[resolvedMessages.length - 1];
+        const lastReadByUser = {};
+        for (const m of resolvedMessages) {
+          if (!lastReadByUser[m.authorId]) {
+            lastReadByUser[m.authorId] = m.createdAt;
+          } else if (m.createdAt.toMillis() > lastReadByUser[m.authorId].toMillis()) {
+            lastReadByUser[m.authorId] = m.createdAt;
+          }
+        }
+
+        chatBatch.update(faultRef, {
+          lastMessageAt: latest.createdAt,
+          lastMessageAuthorId: latest.authorId,
+          lastReadByUser
+        });
+
+        await chatBatch.commit();
+      }
+    }
 
     written++;
   }

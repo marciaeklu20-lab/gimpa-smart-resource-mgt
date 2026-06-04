@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import dynamic from "next/dynamic";
+
 import {
   getFirestore,
   collection,
@@ -13,6 +15,18 @@ import {
 import app from "@/firebase/config";
 
 import { relativeTime, formatDate } from "@/app/lib/resourceMeta";
+import { MAINTENANCE_ROLES } from "@/app/lib/roles";
+
+import { updateFaultStatus } from "./services/updateFaultStatus";
+
+// Lazy-load FaultChat — same chunk-splitting trick we used on
+// ReportFaultModal in Stage 4d. The chat brings in its own Firestore
+// listener + send service; deferring it keeps the FaultDetailPanel
+// chunk lean enough for the constrained-memory build worker.
+const FaultChat = dynamic(
+  () => import("./FaultChat"),
+  { ssr: false }
+);
 
 const SEVERITY_LABEL = {
   cosmetic: "Cosmetic",
@@ -26,14 +40,73 @@ const STATUS_LABEL = {
   acknowledged: "Acknowledged",
   in_progress:  "In Progress",
   resolved:     "Resolved",
-  rejected:     "Rejected"
+  closed:       "Closed"
 };
 
 const severityPillClass = (s) => `fault-pill fault-severity-${s || "minor"}`;
 const statusPillClass   = (s) => `fault-pill fault-status-${s || "pending"}`;
 
+// Status → action button configs. Each action carries the destination
+// status, the modal title/blurb, and whether notes are required.
+// Empty array = terminal status, no transitions allowed.
+const ACTIONS_BY_STATUS = {
+  pending: [
+    {
+      key: "acknowledge",
+      label: "Acknowledge",
+      newStatus: "acknowledged",
+      variant: "primary",
+      title: "Acknowledge fault",
+      description: "Confirm that you've received this fault report and will act on it.",
+      notesLabel: "Optional notes",
+      notesRequired: false,
+      submitLabel: "Acknowledge"
+    },
+    {
+      key: "reject",
+      label: "Reject",
+      newStatus: "closed",
+      variant: "danger",
+      title: "Reject fault",
+      description: "Close this fault without action. The reporter will see the closure reason in the audit trail.",
+      notesLabel: "Rejection reason",
+      notesRequired: true,
+      submitLabel: "Reject fault"
+    }
+  ],
+  acknowledged: [
+    {
+      key: "start_work",
+      label: "Start Work",
+      newStatus: "in_progress",
+      variant: "primary",
+      title: "Start work on this fault",
+      description: "Mark this fault as actively being addressed.",
+      notesLabel: "Optional notes",
+      notesRequired: false,
+      submitLabel: "Start work"
+    }
+  ],
+  in_progress: [
+    {
+      key: "mark_resolved",
+      label: "Mark Resolved",
+      newStatus: "resolved",
+      variant: "success",
+      title: "Mark fault resolved",
+      description: "Record what was done so the reporter sees it on the audit trail.",
+      notesLabel: "Resolution notes",
+      notesRequired: true,
+      submitLabel: "Mark resolved"
+    }
+  ],
+  resolved: [],
+  closed: []
+};
+
 export default function FaultDetailPanel({
   selectedFault,
+  currentUser,
   navigate,
   onClose
 }) {
@@ -42,6 +115,10 @@ export default function FaultDetailPanel({
 
   const [statusHistory, setStatusHistory] = useState([]);
   const [now, setNow] = useState(() => Date.now());
+
+  // Stage 4e action modal state. `pendingAction` is the config object
+  // from ACTIONS_BY_STATUS or null.
+  const [pendingAction, setPendingAction] = useState(null);
 
   // Tick the clock so relative-time strings stay current without a
   // re-fetch.
@@ -87,6 +164,16 @@ export default function FaultDetailPanel({
       assetId: selectedFault.resourceId
     });
   };
+
+  // canAct = the viewer has permission to transition. Mirrors the
+  // Firestore update rule (admin / maintenance). The button row stays
+  // visible for everyone else so reporters see the workflow exists —
+  // it's just disabled with a tooltip.
+  const canAct = currentUser
+    && MAINTENANCE_ROLES.includes(currentUser.role);
+
+  const actionsForStatus = ACTIONS_BY_STATUS[selectedFault.status] || [];
+  const hasActions = actionsForStatus.length > 0;
 
   return (
 
@@ -182,6 +269,51 @@ export default function FaultDetailPanel({
 
       </div>
 
+      {/* Surface the resolution notes / rejection reason inline once
+          set, so a reporter checking back sees the outcome without
+          having to scan the status-history list. */}
+      {selectedFault.status === "resolved" && selectedFault.resolutionNotes && (
+        <div className="fault-detail-section">
+          <label>Resolution notes</label>
+          <p className="fault-detail-description">
+            {selectedFault.resolutionNotes}
+          </p>
+        </div>
+      )}
+
+      {selectedFault.status === "closed" && selectedFault.notes && (
+        <div className="fault-detail-section">
+          <label>Closure reason</label>
+          <p className="fault-detail-description">
+            {selectedFault.notes}
+          </p>
+        </div>
+      )}
+
+      <div className="fault-detail-section">
+        <label>Actions</label>
+        {hasActions ? (
+          <div className="fault-actions-row">
+            {actionsForStatus.map((a) => (
+              <button
+                key={a.key}
+                type="button"
+                className={`fault-action-btn fault-action-${a.variant}`}
+                disabled={!canAct}
+                title={canAct ? "" : "You don't have permission"}
+                onClick={() => canAct && setPendingAction(a)}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="fault-detail-terminal">
+            This fault is {STATUS_LABEL[selectedFault.status] || selectedFault.status}. No further actions.
+          </p>
+        )}
+      </div>
+
       <div className="fault-detail-section">
         <label>Status history</label>
         {statusHistory.length === 0 ? (
@@ -214,12 +346,152 @@ export default function FaultDetailPanel({
         )}
       </div>
 
-      <div className="fault-detail-section fault-detail-actions-placeholder">
-        <label>Actions</label>
-        <p>Workflow actions (acknowledge, in progress, resolve) coming in the next update.</p>
-      </div>
+      {/* Chat is shown to anyone with view access to the fault — same
+          visibility model the rules enforce. Reporter <-> maintenance
+          conversation lives here. */}
+      {currentUser && (
+        <FaultChat
+          faultId={selectedFault.id}
+          currentUser={currentUser}
+        />
+      )}
+
+      {pendingAction && (
+        <ActionConfirmModal
+          action={pendingAction}
+          faultId={selectedFault.id}
+          currentUser={currentUser}
+          onClose={() => setPendingAction(null)}
+        />
+      )}
 
     </div>
 
+  );
+}
+
+// ---------------------------------------------------------------
+// ActionConfirmModal
+//
+// Single reusable confirm modal that adapts its title / blurb /
+// notes-required flag based on the action config. Submits via
+// updateFaultStatus and lets onSnapshot in the parent re-render the
+// new status.
+// ---------------------------------------------------------------
+
+function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
+
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const trimmed = notes.trim();
+  const notesValid = action.notesRequired ? trimmed.length > 0 : true;
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault?.();
+
+    if (submitting) return;
+    if (!notesValid) {
+      setError(`${action.notesLabel} is required.`);
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      await updateFaultStatus({
+        faultId,
+        newStatus: action.newStatus,
+        notes: trimmed,
+        currentUser
+      });
+      onClose();
+    } catch (err) {
+      console.error("updateFaultStatus failed:", err);
+      const code = err?.message;
+      setError(
+        code === "NOTES_REQUIRED"
+          ? `${action.notesLabel} is required.`
+          : code === "NOTES_TOO_LONG"
+            ? "Notes are too long (max 2000 characters)."
+            : "Could not update the fault. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fault-modal-overlay" role="dialog" aria-modal="true">
+      <div className="fault-modal">
+
+        <div className="fault-modal-header">
+          <div>
+            <h2>{action.title}</h2>
+            <p>{action.description}</p>
+          </div>
+          <button
+            type="button"
+            className="fault-modal-close"
+            onClick={onClose}
+            disabled={submitting}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <form className="fault-modal-form" onSubmit={handleSubmit}>
+
+          <div className="fault-field">
+            <label>
+              {action.notesLabel}
+              {action.notesRequired && <span style={{ color: "#b91c1c" }}> *</span>}
+              <span className="fault-field-counter">{trimmed.length} / 2000</span>
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={2000}
+              placeholder={
+                action.notesRequired
+                  ? "Required — describe what was done or why this is being closed."
+                  : "Optional — add context for the reporter."
+              }
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+
+          {error && (
+            <div className="fault-error-banner" role="alert">
+              {error}
+            </div>
+          )}
+
+          <div className="fault-actions">
+            <button
+              type="button"
+              className="fault-cancel-btn"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={`fault-submit-btn fault-submit-${action.variant}`}
+              disabled={submitting || !notesValid}
+            >
+              {submitting ? "Saving…" : action.submitLabel}
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
   );
 }
