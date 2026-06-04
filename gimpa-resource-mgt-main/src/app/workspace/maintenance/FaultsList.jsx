@@ -22,6 +22,7 @@ import ReportFaultModal from "./ReportFaultModal";
 import FaultDetailPanel from "./FaultDetailPanel";
 
 import { relativeTime } from "@/app/lib/resourceMeta";
+import { MAINTENANCE_ADMINS } from "@/app/lib/roles";
 
 import "@/app/styles/workspace/faults.css";
 
@@ -52,6 +53,13 @@ export default function FaultsList({ navigate }) {
   const [allResources, setAllResources] = useState([]);
   const [now, setNow] = useState(() => Date.now());
 
+  // Stage 4e.5: filter tabs. "all" shows every fault the user can see;
+  // "mine" filters to the current user's active assignments. Default
+  // varies by role — admins land on All (oversight); technicians land
+  // on My Assignments (focus). Initialized on currentUser load.
+  const [filter, setFilter] = useState("all");
+  const [filterInitialized, setFilterInitialized] = useState(false);
+
   // Load the current user once (for ReportFaultModal's reporter
   // fields). Loaded here rather than passed via prop so FaultsList
   // stays self-contained at the cost of a single user-doc read.
@@ -77,6 +85,16 @@ export default function FaultsList({ navigate }) {
     return () => unsub();
   }, [currentUser?.uid, currentUser?.role]);
 
+  // Default-filter selection: technicians focus on their queue;
+  // admins see the full list. Only fires once per user load so manual
+  // tab switches stick.
+  useEffect(() => {
+    if (!currentUser || filterInitialized) return;
+    const isAdmin = MAINTENANCE_ADMINS.includes(currentUser.role);
+    setFilter(isAdmin ? "all" : "mine");
+    setFilterInitialized(true);
+  }, [currentUser?.uid, currentUser?.role, filterInitialized]);
+
   // Resource list (for the modal's asset dropdown when no
   // lockedResource is passed). One-shot getDocs since the modal is
   // opened ad-hoc and doesn't need live updates.
@@ -98,23 +116,41 @@ export default function FaultsList({ navigate }) {
     return () => clearInterval(t);
   }, []);
 
+  // Visible faults — gated by the filter tab. "mine" filters to the
+  // current user's assignments; "all" passes everything through.
+  // Reporters who aren't in the maintenance domain still see the
+  // tabs but "mine" will be empty for them (acceptable — they only
+  // ever see their own reports anyway, and Maintenance Staff is the
+  // intended audience).
+  const visibleFaults = useMemo(() => {
+    if (filter !== "mine") return faults;
+    if (!currentUser?.uid) return [];
+    return faults.filter((f) => f.assignedTo?.uid === currentUser.uid);
+  }, [faults, filter, currentUser?.uid]);
+
+  const myCount = useMemo(() => {
+    if (!currentUser?.uid) return 0;
+    return faults.filter((f) => f.assignedTo?.uid === currentUser.uid).length;
+  }, [faults, currentUser?.uid]);
+
   // If the selected fault gets removed from the visible list (e.g.
-  // resolved and filtered out later), clear the panel so we're not
-  // showing stale data.
+  // resolved and filtered out later, or the filter tab changed),
+  // clear the panel so we're not showing stale data. Must come AFTER
+  // the visibleFaults useMemo so the closure captures the live ref.
   useEffect(() => {
     if (!selectedFaultId) return;
-    const stillVisible = faults.some((f) => f.id === selectedFaultId);
+    const stillVisible = visibleFaults.some((f) => f.id === selectedFaultId);
     if (!stillVisible) setSelectedFaultId(null);
-  }, [faults, selectedFaultId]);
+  }, [visibleFaults, selectedFaultId]);
 
   const selectedFault = useMemo(
     () => (selectedFaultId
-      ? faults.find((f) => f.id === selectedFaultId) || null
+      ? visibleFaults.find((f) => f.id === selectedFaultId) || null
       : null),
-    [faults, selectedFaultId]
+    [visibleFaults, selectedFaultId]
   );
 
-  const isEmpty = faults.length === 0;
+  const isEmpty = visibleFaults.length === 0;
 
   return (
 
@@ -125,6 +161,26 @@ export default function FaultsList({ navigate }) {
       </header>
 
       <div className="faults-toolbar">
+        <div className="faults-filter-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filter === "all"}
+            className={`faults-filter-tab ${filter === "all" ? "active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            All Faults ({faults.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={filter === "mine"}
+            className={`faults-filter-tab ${filter === "mine" ? "active" : ""}`}
+            onClick={() => setFilter("mine")}
+          >
+            My Assignments ({myCount})
+          </button>
+        </div>
         <div style={{ flex: 1 }} />
         <button
           type="button"
@@ -141,10 +197,15 @@ export default function FaultsList({ navigate }) {
           <div style={{ marginBottom: 14, color: "#94a3b8" }}>
             <FaToolbox size={48} />
           </div>
-          <h3>No faults reported yet.</h3>
+          <h3>
+            {filter === "mine"
+              ? "No faults are assigned to you."
+              : "No faults reported yet."}
+          </h3>
           <p>
-            Once users report faults on assets, they'll appear here
-            for review and assignment.
+            {filter === "mine"
+              ? "When a maintenance admin assigns you a fault, or you claim one, it'll show up here."
+              : "Once users report faults on assets, they'll appear here for review and assignment."}
           </p>
           <button
             type="button"
@@ -175,7 +236,7 @@ export default function FaultsList({ navigate }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {faults.map((f) => {
+                  {visibleFaults.map((f) => {
                     const isSelected = selectedFaultId === f.id;
                     return (
                       <tr

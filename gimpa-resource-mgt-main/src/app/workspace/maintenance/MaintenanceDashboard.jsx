@@ -12,7 +12,7 @@ import {
 
 import app from "@/firebase/config";
 
-import { FaTools, FaSpinner, FaCheckCircle, FaWrench } from "react-icons/fa";
+import { FaTools, FaSpinner, FaCheckCircle, FaWrench, FaUserSlash } from "react-icons/fa";
 
 const db = getFirestore(app);
 
@@ -24,6 +24,7 @@ export default function MaintenanceDashboard() {
   const [inProgressCount, setInProgressCount] = useState(0);
   const [resolvedThisWeekCount, setResolvedThisWeekCount] = useState(0);
   const [inMaintenanceCount, setInMaintenanceCount] = useState(0);
+  const [unassignedCount, setUnassignedCount] = useState(0);
 
   // Four parallel listeners: 3 over /faults (Stage 4d) + 1 over
   // /resources (Stage 4c). All four unsubscribes are returned in a
@@ -82,6 +83,21 @@ export default function MaintenanceDashboard() {
       (err) => console.error("Assets under maintenance listener:", err)
     ));
 
+    // Stage 4e.5: unassigned, still-actionable faults. Firestore's
+    // "==" treats missing fields as null and matches them too, so this
+    // single listener covers both legacy faults without the field and
+    // faults explicitly released to null. Pre-stage-4e.5 faults still
+    // count as unassigned, which is correct.
+    unsubs.push(onSnapshot(
+      query(
+        collection(db, "faults"),
+        where("status", "in", ["pending", "acknowledged"]),
+        where("assignedTo", "==", null)
+      ),
+      (snap) => setUnassignedCount(snap.size),
+      (err) => console.error("Unassigned faults listener:", err)
+    ));
+
     return () => {
       unsubs.forEach((u) => u());
     };
@@ -123,6 +139,12 @@ export default function MaintenanceDashboard() {
           icon={<FaWrench size={22} />}
           label="Assets Under Maintenance"
           value={inMaintenanceCount}
+        />
+
+        <KpiCard
+          icon={<FaUserSlash size={22} />}
+          label="Unassigned Faults"
+          value={unassignedCount}
         />
 
       </div>

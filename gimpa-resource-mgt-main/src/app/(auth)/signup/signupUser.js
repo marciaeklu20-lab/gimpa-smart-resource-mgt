@@ -11,6 +11,7 @@ const approvalRequiredRoles = [
   "Lecturer",
   "Teaching Assistant",
   "Maintenance Officer",
+  "Maintenance Admin",
   "Maintenance Staff",
   "Stores/Inventory Officer",
   "Facility/Estate Officer",

@@ -39,6 +39,7 @@ export default function RoleSelector({
     { value: "Receptionist", label: "Receptionist" },
     { value: "Counselor / Student Affairs Officer", label: "Counselor / Student Affairs Officer" },
     { value: "Maintenance Officer", label: "Maintenance Officer" },
+    { value: "Maintenance Admin", label: "Maintenance Admin" },
     { value: "Maintenance Staff", label: "Maintenance Staff" },
     { value: "Stores/Inventory Officer", label: "Stores/Inventory Officer" },
     { value: "Facility/Estate Officer", label: "Facility/Estate Officer" },

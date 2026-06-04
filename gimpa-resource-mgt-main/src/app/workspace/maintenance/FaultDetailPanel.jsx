@@ -15,9 +15,10 @@ import {
 import app from "@/firebase/config";
 
 import { relativeTime, formatDate } from "@/app/lib/resourceMeta";
-import { MAINTENANCE_ROLES } from "@/app/lib/roles";
+import { MAINTENANCE_ADMINS, MAINTENANCE_ROLES } from "@/app/lib/roles";
 
 import { updateFaultStatus } from "./services/updateFaultStatus";
+import { assignFault } from "./services/assignFault";
 
 // Lazy-load FaultChat — same chunk-splitting trick we used on
 // ReportFaultModal in Stage 4d. The chat brings in its own Firestore
@@ -25,6 +26,14 @@ import { updateFaultStatus } from "./services/updateFaultStatus";
 // chunk lean enough for the constrained-memory build worker.
 const FaultChat = dynamic(
   () => import("./FaultChat"),
+  { ssr: false }
+);
+
+// AssignFaultModal also lazy-loaded — it fetches the maintenance-staff
+// user list and only opens on demand, so deferring it keeps the
+// detail-panel chunk minimal.
+const AssignFaultModal = dynamic(
+  () => import("./AssignFaultModal"),
   { ssr: false }
 );
 
@@ -114,11 +123,20 @@ export default function FaultDetailPanel({
   const db = getFirestore(app);
 
   const [statusHistory, setStatusHistory] = useState([]);
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [showAssignmentHistory, setShowAssignmentHistory] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // Stage 4e action modal state. `pendingAction` is the config object
   // from ACTIONS_BY_STATUS or null.
   const [pendingAction, setPendingAction] = useState(null);
+
+  // Stage 4e.5 assignment modal state. Three independent surfaces:
+  //   - showAssignModal: full AssignFaultModal (admin assign/reassign)
+  //   - pendingAssignmentChange: { type, ... } for claim or release
+  //     handled by AssignmentConfirmModal below
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [pendingAssignmentChange, setPendingAssignmentChange] = useState(null);
 
   // Tick the clock so relative-time strings stay current without a
   // re-fetch.
@@ -148,6 +166,29 @@ export default function FaultDetailPanel({
     return () => unsub();
   }, [selectedFault?.id]);
 
+  // Assignment history — same shape as statusHistory, reverse-
+  // chronological. Subscribed unconditionally so the admin's
+  // "Assign…" / "Reassign…" UI reflects writes immediately.
+  useEffect(() => {
+    if (!selectedFault?.id) {
+      setAssignmentHistory([]);
+      return;
+    }
+
+    const unsub = onSnapshot(
+      query(
+        collection(db, "faults", selectedFault.id, "assignmentHistory"),
+        orderBy("changedAt", "desc")
+      ),
+      (snap) => setAssignmentHistory(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      ),
+      (err) => console.error("assignmentHistory listener:", err)
+    );
+
+    return () => unsub();
+  }, [selectedFault?.id]);
+
   if (!selectedFault) {
     return (
       <div className="fault-detail-panel fault-detail-empty">
@@ -165,15 +206,78 @@ export default function FaultDetailPanel({
     });
   };
 
-  // canAct = the viewer has permission to transition. Mirrors the
-  // Firestore update rule (admin / maintenance). The button row stays
-  // visible for everyone else so reporters see the workflow exists —
-  // it's just disabled with a tooltip.
-  const canAct = currentUser
+  // Role tier flags. Stage 4e.5 splits the maintenance domain into
+  // admins (assign + override) vs staff (action only their own).
+  const isMaintenanceAdmin = currentUser
+    && MAINTENANCE_ADMINS.includes(currentUser.role);
+  const isMaintenanceStaff = currentUser
+    && currentUser.role === "Maintenance Staff";
+  const isInMaintenanceDomain = currentUser
     && MAINTENANCE_ROLES.includes(currentUser.role);
+
+  const assignedTo = selectedFault.assignedTo || null;
+  const isAssignee = assignedTo
+    && currentUser
+    && assignedTo.uid === currentUser.uid;
+
+  // Workflow actions are visible IF the viewer is a maintenance admin
+  // (override) OR they are the current assignee. Unassigned + pending
+  // faults hide the buttons entirely with a hint to claim/assign first.
+  const canAct = isInMaintenanceDomain
+    && (isMaintenanceAdmin || isAssignee);
 
   const actionsForStatus = ACTIONS_BY_STATUS[selectedFault.status] || [];
   const hasActions = actionsForStatus.length > 0;
+
+  // Hint banner: only show on unassigned pending so the maintenance
+  // viewer knows the workflow is blocked until ownership is set.
+  const showUnassignedHint = !assignedTo
+    && selectedFault.status === "pending"
+    && isInMaintenanceDomain;
+
+  // Assignee sub-card action button — five distinct states per spec.
+  const assigneeAction = (() => {
+    if (!isInMaintenanceDomain) return null;
+    if (!assignedTo) {
+      // Unassigned. Admin gets the dropdown modal; staff gets a one-
+      // click claim.
+      if (isMaintenanceAdmin) {
+        return {
+          key: "assign",
+          label: "Assign…",
+          variant: "primary",
+          onClick: () => setShowAssignModal(true)
+        };
+      }
+      if (isMaintenanceStaff) {
+        return {
+          key: "claim",
+          label: "Claim This Fault",
+          variant: "primary",
+          onClick: () => setPendingAssignmentChange({ type: "claim" })
+        };
+      }
+      return null;
+    }
+    // Assigned.
+    if (isMaintenanceAdmin) {
+      return {
+        key: "reassign",
+        label: "Reassign…",
+        variant: "primary",
+        onClick: () => setShowAssignModal(true)
+      };
+    }
+    if (isAssignee) {
+      return {
+        key: "release",
+        label: "Release Assignment",
+        variant: "danger",
+        onClick: () => setPendingAssignmentChange({ type: "release" })
+      };
+    }
+    return null;
+  })();
 
   return (
 
@@ -211,6 +315,48 @@ export default function FaultDetailPanel({
           </span>
         </div>
 
+      </div>
+
+      {/* Assignee sub-card — shows current ownership + the contextual
+          action button (Claim / Assign / Reassign / Release). Above
+          the description so reviewers see ownership before details. */}
+      <div className="fault-assignee-card">
+        <div className="fault-assignee-body">
+          {assignedTo ? (
+            <>
+              <div className="fault-assignee-primary">
+                <span className="fault-assignee-label">Assigned to:</span>
+                <strong>{assignedTo.name || "Unknown"}</strong>
+                {assignedTo.role && (
+                  <span className="fault-assignee-role">
+                    ({assignedTo.role})
+                  </span>
+                )}
+              </div>
+              <div className="fault-assignee-sub">
+                Assigned by {selectedFault.assignedBy?.name || "Unknown"}
+                {selectedFault.assignedAt
+                  ? ` · ${relativeTime(selectedFault.assignedAt, now)}`
+                  : ""}
+              </div>
+            </>
+          ) : (
+            <div className="fault-assignee-primary">
+              <span className="fault-assignee-unassigned">
+                Unassigned
+              </span>
+            </div>
+          )}
+        </div>
+        {assigneeAction && (
+          <button
+            type="button"
+            className={`fault-action-btn fault-action-${assigneeAction.variant}`}
+            onClick={assigneeAction.onClick}
+          >
+            {assigneeAction.label}
+          </button>
+        )}
       </div>
 
       <div className="fault-detail-section">
@@ -293,20 +439,38 @@ export default function FaultDetailPanel({
       <div className="fault-detail-section">
         <label>Actions</label>
         {hasActions ? (
-          <div className="fault-actions-row">
-            {actionsForStatus.map((a) => (
-              <button
-                key={a.key}
-                type="button"
-                className={`fault-action-btn fault-action-${a.variant}`}
-                disabled={!canAct}
-                title={canAct ? "" : "You don't have permission"}
-                onClick={() => canAct && setPendingAction(a)}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
+          <>
+            {showUnassignedHint && (
+              <p className="fault-detail-hint">
+                This fault is unassigned. Claim it or assign before actioning.
+              </p>
+            )}
+            {!showUnassignedHint && canAct && (
+              <div className="fault-actions-row">
+                {actionsForStatus.map((a) => (
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={`fault-action-btn fault-action-${a.variant}`}
+                    onClick={() => setPendingAction(a)}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!showUnassignedHint && !canAct && isInMaintenanceDomain && assignedTo && (
+              <p className="fault-detail-hint">
+                This fault is assigned to {assignedTo.name || "another staff member"}.
+                {" "}Only the assignee or Maintenance Admin can action it.
+              </p>
+            )}
+            {!isInMaintenanceDomain && (
+              <p className="fault-detail-hint">
+                Only maintenance staff can action this fault.
+              </p>
+            )}
+          </>
         ) : (
           <p className="fault-detail-terminal">
             This fault is {STATUS_LABEL[selectedFault.status] || selectedFault.status}. No further actions.
@@ -346,6 +510,56 @@ export default function FaultDetailPanel({
         )}
       </div>
 
+      <div className="fault-detail-section">
+        <button
+          type="button"
+          className="fault-history-toggle"
+          onClick={() => setShowAssignmentHistory((v) => !v)}
+          aria-expanded={showAssignmentHistory}
+        >
+          <span>Assignment history</span>
+          <span className="fault-history-toggle-chevron">
+            {showAssignmentHistory ? "▾" : "▸"} {assignmentHistory.length}
+          </span>
+        </button>
+        {showAssignmentHistory && (
+          assignmentHistory.length === 0 ? (
+            <p className="fault-detail-empty-text">No assignment changes yet.</p>
+          ) : (
+            <ul className="fault-history-list">
+              {assignmentHistory.map((e) => {
+                const oldName = e.oldAssignee?.name;
+                const newName = e.newAssignee?.name;
+                const summary = !oldName && newName
+                  ? `Assigned to ${newName}`
+                  : oldName && !newName
+                    ? `Released from ${oldName}`
+                    : oldName && newName
+                      ? `Reassigned ${oldName} → ${newName}`
+                      : "Assignment changed";
+                return (
+                  <li key={e.id} className="fault-history-item">
+                    <div>
+                      <strong>{summary}</strong>
+                      {e.reason && (
+                        <span className="fault-history-note"> · {e.reason}</span>
+                      )}
+                      <div className="fault-history-actor">
+                        {e.changedBy?.name || "Unknown"}
+                        {e.changedBy?.role ? ` · ${e.changedBy.role}` : ""}
+                      </div>
+                    </div>
+                    <div className="fault-history-time">
+                      {e.changedAt ? relativeTime(e.changedAt, now) : ""}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
+      </div>
+
       {/* Chat is shown to anyone with view access to the fault — same
           visibility model the rules enforce. Reporter <-> maintenance
           conversation lives here. */}
@@ -362,6 +576,24 @@ export default function FaultDetailPanel({
           faultId={selectedFault.id}
           currentUser={currentUser}
           onClose={() => setPendingAction(null)}
+        />
+      )}
+
+      {showAssignModal && (
+        <AssignFaultModal
+          faultId={selectedFault.id}
+          currentAssignee={assignedTo}
+          currentUser={currentUser}
+          onClose={() => setShowAssignModal(false)}
+        />
+      )}
+
+      {pendingAssignmentChange && (
+        <AssignmentConfirmModal
+          change={pendingAssignmentChange}
+          faultId={selectedFault.id}
+          currentUser={currentUser}
+          onClose={() => setPendingAssignmentChange(null)}
         />
       )}
 
@@ -486,6 +718,156 @@ function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
               disabled={submitting || !notesValid}
             >
               {submitting ? "Saving…" : action.submitLabel}
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------
+// AssignmentConfirmModal (Stage 4e.5)
+//
+// Handles the two single-button assignment changes that don't need
+// the full staff-picker AssignFaultModal:
+//   - claim:   staff self-assigns. Reason auto-supplied so the service
+//              gets its required 5-char minimum. Confirm-only UX.
+//   - release: assignee drops the fault. Reason required from the
+//              actor — they have to justify dropping ownership.
+// ---------------------------------------------------------------
+
+function AssignmentConfirmModal({ change, faultId, currentUser, onClose }) {
+
+  const isClaim = change.type === "claim";
+
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  const trimmed = reason.trim();
+  const reasonValid = isClaim
+    ? true
+    : trimmed.length >= 5 && trimmed.length <= 500;
+
+  const handleSubmit = async (e) => {
+    e?.preventDefault?.();
+    if (submitting) return;
+    if (!reasonValid) {
+      setError("Reason must be 5–500 characters.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      if (isClaim) {
+        await assignFault({
+          faultId,
+          newAssignee: {
+            uid: currentUser.uid,
+            name: currentUser.fullName || currentUser.email || "Unknown",
+            role: currentUser.role
+          },
+          reason: trimmed || `Self-claimed by ${currentUser.fullName || currentUser.email}`,
+          currentUser
+        });
+      } else {
+        await assignFault({
+          faultId,
+          newAssignee: null,
+          reason: trimmed,
+          currentUser
+        });
+      }
+      onClose();
+    } catch (err) {
+      console.error("assignFault failed:", err);
+      const code = err?.message;
+      setError(
+        code === "REASON_TOO_SHORT"
+          ? "Reason must be at least 5 characters."
+          : code === "REASON_TOO_LONG"
+            ? "Reason must be at most 500 characters."
+            : "Could not update the assignment. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fault-modal-overlay" role="dialog" aria-modal="true">
+      <div className="fault-modal">
+
+        <div className="fault-modal-header">
+          <div>
+            <h2>{isClaim ? "Claim this fault" : "Release assignment"}</h2>
+            <p>
+              {isClaim
+                ? "You'll become the owner and can transition this fault through its workflow."
+                : "Drop your ownership of this fault. A maintenance admin will need to reassign it."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="fault-modal-close"
+            onClick={onClose}
+            disabled={submitting}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <form className="fault-modal-form" onSubmit={handleSubmit}>
+
+          <div className="fault-field">
+            <label>
+              {isClaim ? "Note (optional)" : "Reason"}
+              {!isClaim && <span style={{ color: "#b91c1c" }}> *</span>}
+              <span className="fault-field-counter">{trimmed.length} / 500</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              maxLength={500}
+              placeholder={
+                isClaim
+                  ? "Optional — add context for the audit log."
+                  : "Required — why are you releasing this fault?"
+              }
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+
+          {error && (
+            <div className="fault-error-banner" role="alert">
+              {error}
+            </div>
+          )}
+
+          <div className="fault-actions">
+            <button
+              type="button"
+              className="fault-cancel-btn"
+              onClick={onClose}
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className={`fault-submit-btn fault-submit-${isClaim ? "primary" : "danger"}`}
+              disabled={submitting || !reasonValid}
+            >
+              {submitting
+                ? "Saving…"
+                : (isClaim ? "Claim fault" : "Release fault")}
             </button>
           </div>
 

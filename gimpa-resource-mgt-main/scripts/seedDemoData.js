@@ -234,10 +234,14 @@ const wipeFaultsCollection = async () => {
   const snap = await db.collection("faults").get();
   if (snap.empty) return 0;
   for (const docSnap of snap.docs) {
-    const history = await docSnap.ref.collection("statusHistory").get();
-    if (!history.empty) {
+    // Stage 4e added the messages subcollection, Stage 4e.5 added
+    // assignmentHistory. Admin SDK doesn't cascade — delete each one
+    // before the parent fault, otherwise a re-seed leaves orphans.
+    for (const sub of ["statusHistory", "assignmentHistory", "messages"]) {
+      const subSnap = await docSnap.ref.collection(sub).get();
+      if (subSnap.empty) continue;
       const batch = db.batch();
-      history.docs.forEach((h) => batch.delete(h.ref));
+      subSnap.docs.forEach((s) => batch.delete(s.ref));
       await batch.commit();
     }
     await docSnap.ref.delete();
@@ -315,6 +319,34 @@ const DEMO_ACCOUNTS = [
       role: "Maintenance Staff",
       department: null,
       staffID: "STF-DEMO-004",
+      approved: true,
+      needsApproval: false
+    }
+  },
+  // Stage 4e.5: Maintenance Admin — assigns faults, oversees the
+  // maintenance domain, can override the assignee gate on workflow
+  // actions. Distinct from super_admin (system superuser).
+  {
+    email: "demo.maintadmin@gimpa.edu.gh",
+    fullName: "Demo Maintenance Admin",
+    userDoc: {
+      role: "Maintenance Admin",
+      department: "Facilities & Maintenance",
+      staffID: "STF-DEMO-005",
+      approved: true,
+      needsApproval: false
+    }
+  },
+  // Stage 4e.5: second maintenance technician so the dropdown in
+  // AssignFaultModal has more than one choice and the "not your
+  // assignment" gating path is demonstrable.
+  {
+    email: "demo.maintenance2@gimpa.edu.gh",
+    fullName: "Demo Maintenance Tech 2",
+    userDoc: {
+      role: "Maintenance Staff",
+      department: "IT Maintenance",
+      staffID: "STF-DEMO-006",
       approved: true,
       needsApproval: false
     }
@@ -1078,6 +1110,9 @@ const seedBookings = async (accountsByEmail) => {
 
 const DEMO_FAULTS = [
   {
+    // Intentionally unassigned so the "Unassigned Faults" KPI is > 0
+    // and the demo flow has an obvious target for the maintadmin
+    // assign action.
     resourceId: "LAB-002",
     resourceName: "Computer Lab 2",
     resourceCategory: "Facilities",
@@ -1086,7 +1121,8 @@ const DEMO_FAULTS = [
       "Two workstations at the back have black screens after boot. " +
       "Power cycling doesn't fix — they reach the login screen then go black.",
     severity: "major",
-    imageUrl: null
+    imageUrl: null,
+    assignToEmail: null
   },
   {
     resourceId: "EQP-004",
@@ -1097,7 +1133,10 @@ const DEMO_FAULTS = [
       "Camera battery dies after roughly 20 minutes of recording. " +
       "Barely usable for an event longer than a single talk.",
     severity: "minor",
-    imageUrl: null
+    imageUrl: null,
+    // Pre-assigned to the second technician so "My Assignments" shows
+    // them a single fault while the cracked-lens stays with demo.maintenance.
+    assignToEmail: "demo.maintenance2@gimpa.edu.gh"
   },
   {
     resourceId: "EQP-001",
@@ -1109,6 +1148,9 @@ const DEMO_FAULTS = [
       "dark line across the right edge. Photo attached.",
     severity: "major",
     imageUrl: "https://placehold.co/600x400/png?text=Cracked+Lens",
+    // Pre-assigned to demo.maintenance so the cracked-lens seed chat
+    // (lecturer ↔ maintenance) lines up with the assignee.
+    assignToEmail: "demo.maintenance@gimpa.edu.gh",
     // Stage 4e: pre-seeded chat thread on the cracked-lens fault so
     // reviewers see a live conversation on first load. Last message
     // is intentionally from maintenance (not the reporter) so future
@@ -1137,6 +1179,19 @@ const seedFaults = async (accountsByEmail) => {
 
   let written = 0;
 
+  // Stage 4e.5: maintenance admin who is recorded as the actor on
+  // every pre-seeded assignment (changedBy + assignedBy). If the demo
+  // admin account couldn't be seeded, fall back to a system placeholder
+  // so the seed still runs cleanly.
+  const maintAdminAccount = accountsByEmail["demo.maintadmin@gimpa.edu.gh"];
+  const maintAdminActor = maintAdminAccount
+    ? {
+        uid: maintAdminAccount.uid,
+        name: maintAdminAccount.fullName,
+        role: maintAdminAccount.userDoc.role
+      }
+    : { uid: "system", name: "System (seed)", role: "super_admin" };
+
   for (const f of DEMO_FAULTS) {
 
     const reporter = accountsByEmail[f.reporterEmail];
@@ -1153,6 +1208,19 @@ const seedFaults = async (accountsByEmail) => {
       name: reporter.fullName,
       role: reporter.userDoc.role
     };
+
+    // Resolve assignee account (if any) up front so we can stamp the
+    // fault doc + assignmentHistory in the same batch as the parent.
+    const assigneeAccount = f.assignToEmail
+      ? accountsByEmail[f.assignToEmail]
+      : null;
+    const assignedTo = assigneeAccount
+      ? {
+          uid: assigneeAccount.uid,
+          name: assigneeAccount.fullName,
+          role: assigneeAccount.userDoc.role
+        }
+      : null;
 
     const faultRef = db.collection("faults").doc();
 
@@ -1173,7 +1241,15 @@ const seedFaults = async (accountsByEmail) => {
       imageStoragePath: null,
 
       status: "pending",
-      routedToRoles: ["super_admin", "Maintenance Staff"],
+      routedToRoles: ["super_admin", "Maintenance Admin", "Maintenance Staff"],
+
+      // Stage 4e.5 assignment fields. assignedAt is stamped with
+      // serverTimestamp when an assignee was supplied; null otherwise.
+      assignedTo,
+      assignedAt: assignedTo
+        ? admin.firestore.FieldValue.serverTimestamp()
+        : null,
+      assignedBy: assignedTo ? maintAdminActor : null,
 
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1199,6 +1275,21 @@ const seedFaults = async (accountsByEmail) => {
     const batch = db.batch();
     batch.set(faultRef, faultData);
     batch.set(historyRef, historyData);
+
+    // Write the initial assignmentHistory entry alongside the fault
+    // so the audit trail starts from t=0 rather than waiting for a
+    // future write. changedBy = maintadmin per spec.
+    if (assignedTo) {
+      const assignHistoryRef = faultRef.collection("assignmentHistory").doc();
+      batch.set(assignHistoryRef, {
+        changedAt: admin.firestore.FieldValue.serverTimestamp(),
+        oldAssignee: null,
+        newAssignee: assignedTo,
+        reason: "Initial assignment by maintenance admin",
+        changedBy: maintAdminActor
+      });
+    }
+
     await batch.commit();
 
     // Stage 4e: optional pre-seeded chat thread (currently only on

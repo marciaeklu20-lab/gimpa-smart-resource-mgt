@@ -995,4 +995,147 @@
   .fault-chat-message {
     max-width: 92%;
   }
+
+  .fault-assignee-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Stage 4e.5 — Assignee sub-card + filter tabs + history toggle
+--------------------------------------------------------------- */
+
+.fault-assignee-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  margin: 12px 0 4px;
+  padding: 12px 14px;
+
+  background: #f1f5f9;
+  border: 2px solid #cbd5e1;
+  border-radius: 12px;
+}
+
+.fault-assignee-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.fault-assignee-primary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.fault-assignee-label {
+  color: #475569;
+  font-weight: 600;
+}
+
+.fault-assignee-role {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.fault-assignee-sub {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.fault-assignee-unassigned {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.fault-detail-hint {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+
+  color: #92400e;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.fault-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  margin-bottom: 8px;
+  padding: 0;
+
+  background: transparent;
+  border: none;
+
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  cursor: pointer;
+}
+
+.fault-history-toggle:hover {
+  color: #0f172a;
+}
+
+.fault-history-toggle-chevron {
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.faults-filter-tabs {
+  display: flex;
+  gap: 4px;
+
+  padding: 4px;
+
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.faults-filter-tab {
+  flex: 0 0 auto;
+
+  padding: 6px 14px;
+
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+
+  color: #475569;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.faults-filter-tab:hover {
+  color: #0f172a;
+}
+
+.faults-filter-tab.active {
+  background: #ffffff;
+  color: #003366;
+  box-shadow: 0 1px 3px rgba(0, 51, 102, 0.12);
 }

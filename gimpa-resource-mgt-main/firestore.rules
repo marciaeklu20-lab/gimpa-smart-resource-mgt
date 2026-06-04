@@ -71,10 +71,24 @@ service cloud.firestore {
     // Staff can flip lifecycleStatus + condition on resources and write
     // entries into the resource history subcollections; they are NOT
     // admins or global approvers and don't see all bookings.
+    // Stage 4e.5: Maintenance Admin joins the maintenance domain too,
+    // so this list is the visibility/membership predicate. The narrower
+    // tier predicate is isMaintenanceAdmin() below.
     function isMaintenanceStaff() {
       return myRole() in [
         "super_admin",
+        "Maintenance Admin",
         "Maintenance Staff"
+      ];
+    }
+
+    // Mirrors MAINTENANCE_ADMINS in src/app/lib/roles.js. The
+    // department-head tier: assigns faults, overrides workflow gates,
+    // and oversees all maintenance activity. super_admin counts too.
+    function isMaintenanceAdmin() {
+      return myRole() in [
+        "super_admin",
+        "Maintenance Admin"
       ];
     }
 
@@ -381,7 +395,7 @@ service cloud.firestore {
       //       lastReadByUser} so reporters can send chat messages
       //       without being granted full update access.
       allow update: if isApproved() && (
-        (isAdmin() || isMaintenanceStaff())
+        (isAdmin() || isMaintenanceAdmin() || isMaintenanceStaff())
         || (
           canSeeFault()
           && isFaultChatMetadataOnlyUpdate()
@@ -389,6 +403,46 @@ service cloud.firestore {
       );
 
       allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // faults/{faultId}/assignmentHistory/{entryId}  (Stage 4e.5)
+    //
+    // Append-only audit log of assignment changes (assign / reassign /
+    // release). Mirrors the parent fault's visibility for reads. Only
+    // admins, Maintenance Admin, or Maintenance Staff can append (the
+    // reporter never writes here).
+    //
+    // Read:    inherits parent visibility (reporter sees who owns
+    //          their fault). One extra get() per evaluation.
+    // Create:  admin, Maintenance Admin, or Maintenance Staff.
+    //          Field shape is enforced by assignFault.js client-side;
+    //          rules deliberately don't lock down the payload yet to
+    //          match the looser stance on statusHistory.
+    // Update/
+    // Delete:  denied — history is append-only.
+    // ---------------------------------------------------------------
+    match /faults/{faultId}/assignmentHistory/{entryId} {
+
+      function parentFaultAssign() {
+        return get(/databases/$(database)/documents/faults/$(faultId)).data;
+      }
+
+      function canSeeParentFaultAssign() {
+        return parentFaultAssign().reporterId == request.auth.uid
+          || myRole() in parentFaultAssign().routedToRoles
+          || isAdmin()
+          || isMaintenanceAdmin()
+          || isMaintenanceStaff();
+      }
+
+      allow read: if isApproved() && canSeeParentFaultAssign();
+
+      allow create: if isApproved() && (
+        isAdmin() || isMaintenanceAdmin() || isMaintenanceStaff()
+      );
+
+      allow update, delete: if false;
     }
 
     // ---------------------------------------------------------------
