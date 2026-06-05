@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getFirestore,
   collection,
+  doc,
+  getDoc,
   query,
   where,
   onSnapshot
@@ -42,6 +44,61 @@ const bookingIsActive = (b, nowMs) => {
     return end.toMillis() >= nowMs;
   }
   return true;
+};
+
+// Stage 4g.1: shared start/end parser. Bookings written by BookingForm
+// store dates as ISO strings (.toISOString()), but legacy / future
+// callers may use Firestore Timestamps. Returns a JS Date or null.
+const parseBookingDate = (val) => {
+  if (!val) return null;
+  if (typeof val === "string") {
+    const d = new Date(val);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof val?.toMillis === "function") {
+    return new Date(val.toMillis());
+  }
+  if (val instanceof Date) return val;
+  return null;
+};
+
+const startOfLocalDay = (d) =>
+  new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+const sameLocalDay = (a, b) =>
+  a.getFullYear() === b.getFullYear()
+  && a.getMonth() === b.getMonth()
+  && a.getDate() === b.getDate();
+
+const weekdayShort = (d) =>
+  d.toLocaleDateString("en-GB", { weekday: "short" });
+
+const formatTimeHM = (d) =>
+  d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+
+// "Today" / "Tomorrow" / "Mon 9" — used as the compact date badge in
+// the Upcoming-this-week list.
+const dateBadgeFor = (d, nowDate) => {
+  const today = startOfLocalDay(nowDate);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (sameLocalDay(d, today)) return "Today";
+  if (sameLocalDay(d, tomorrow)) return "Tomorrow";
+  return `${weekdayShort(d)} ${d.getDate()}`;
+};
+
+// Avatar letter for the resource-of-interest card. Resources have no
+// thumbnail field in the schema yet — keep a single source for the
+// initial so future thumbnail support can switch the card body
+// without redesigning the fallback.
+const initialFor = (name) => {
+  if (!name) return "?";
+  const trimmed = String(name).trim();
+  return trimmed ? trimmed[0].toUpperCase() : "?";
 };
 
 export default function BookerDashboard({ currentUser, navigate }) {
@@ -118,6 +175,98 @@ export default function BookerDashboard({ currentUser, navigate }) {
     }
     return totals;
   }, [faults]);
+
+  // Stage 4g.1 — Upcoming approved bookings starting in the next 7
+  // days (inclusive of today, exclusive of day +7). Sorted ascending
+  // so the next event is on top. now ticks every 30s so the "Today"
+  // badge correctly rolls into "Tomorrow" at midnight without a
+  // refetch.
+  const upcomingThisWeek = useMemo(() => {
+    const nowDate = new Date(now);
+    const todayStart = startOfLocalDay(nowDate);
+    const windowEnd = new Date(todayStart);
+    windowEnd.setDate(windowEnd.getDate() + 7);
+
+    return bookings
+      .filter((b) => b.status === "approved")
+      .map((b) => ({
+        booking: b,
+        start: parseBookingDate(b.startDate ?? b.startsAt),
+        end: parseBookingDate(b.endDate ?? b.endsAt)
+      }))
+      .filter(({ start }) =>
+        start && start >= todayStart && start < windowEnd
+      )
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [bookings, now]);
+
+  const upcomingTop = useMemo(
+    () => upcomingThisWeek.slice(0, 5),
+    [upcomingThisWeek]
+  );
+  const hasMoreUpcoming = upcomingThisWeek.length > 5;
+
+  // Stage 4g.1 — Resources-of-interest: top 5 resources by booking
+  // frequency across MY bookings (any status, any time). Ties broken
+  // by most-recent booking start, so a recurring favourite beats an
+  // equally-frequent stale one.
+  const topResources = useMemo(() => {
+    const groups = new Map();
+    for (const b of bookings) {
+      if (!b.resourceId) continue;
+      const existing = groups.get(b.resourceId) || {
+        resourceId: b.resourceId,
+        resourceName: b.resourceName || b.resourceId,
+        count: 0,
+        maxStartMs: 0
+      };
+      existing.count += 1;
+      const startMs = parseBookingDate(b.startDate ?? b.startsAt)?.getTime() || 0;
+      if (startMs > existing.maxStartMs) {
+        existing.maxStartMs = startMs;
+      }
+      groups.set(b.resourceId, existing);
+    }
+    return [...groups.values()]
+      .sort((a, b) =>
+        b.count - a.count
+        || b.maxStartMs - a.maxStartMs
+      )
+      .slice(0, 5);
+  }, [bookings]);
+
+  // Hydrate the top-5 with their live resource docs so the cards can
+  // show the canonical name + category. Cache is keyed on resourceId
+  // and persists across renders via a ref — we never re-fetch an id
+  // we've already loaded. Five reads max per session.
+  const resourceCacheRef = useRef({});
+  const [hydratedResources, setHydratedResources] = useState({});
+
+  useEffect(() => {
+    const missing = topResources
+      .map((r) => r.resourceId)
+      .filter((id) => !resourceCacheRef.current[id]);
+    if (missing.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(missing.map(async (id) => {
+      try {
+        const snap = await getDoc(doc(db, "resources", id));
+        return [id, snap.exists() ? snap.data() : { __missing: true }];
+      } catch (err) {
+        console.error("BookerDashboard resource hydrate failed:", id, err);
+        return [id, { __missing: true }];
+      }
+    })).then((entries) => {
+      if (cancelled) return;
+      const next = { ...resourceCacheRef.current };
+      for (const [id, data] of entries) next[id] = data;
+      resourceCacheRef.current = next;
+      setHydratedResources(next);
+    });
+
+    return () => { cancelled = true; };
+  }, [topResources]);
 
   // Recent resources I've booked: the last 5 distinct resourceIds
   // from MY bookings, ordered by booking createdAt. Click navigates
@@ -298,6 +447,137 @@ export default function BookerDashboard({ currentUser, navigate }) {
         </div>
 
       </div>
+
+      {/* Stage 4g.1 — Upcoming approved bookings in the next 7 days.
+          Compact rows so the section never dominates the page; the
+          rest of the user's bookings are still one click away via
+          the My-Bookings KPI card above. */}
+      <section className="dashboard-section booker-upcoming-section">
+        <div className="booker-section-header">
+          <h2 className="dashboard-section-title">Upcoming bookings this week</h2>
+          {hasMoreUpcoming && (
+            <button
+              type="button"
+              className="booker-section-link"
+              onClick={() => navigate?.({
+                sidebar: "Resource Management",
+                tab: "Bookings",
+                filter: { status: "approved" }
+              })}
+            >
+              View all upcoming →
+            </button>
+          )}
+        </div>
+
+        {upcomingTop.length === 0 ? (
+          <div className="dashboard-empty-card booker-empty-state">
+            <span>No bookings this week.</span>
+            <button
+              type="button"
+              className="booker-empty-link"
+              onClick={() => navigate?.({
+                sidebar: "Resource Management",
+                tab: "Campus Resources"
+              })}
+            >
+              Browse campus resources →
+            </button>
+          </div>
+        ) : (
+          <ul className="booker-upcoming-list">
+            {upcomingTop.map(({ booking, start, end }) => (
+              <li key={booking.id}>
+                <button
+                  type="button"
+                  className="booker-upcoming-row"
+                  onClick={() => navigate?.({
+                    sidebar: "Resource Management",
+                    tab: "Campus Resources",
+                    assetId: booking.resourceId
+                  })}
+                >
+                  <span className="booker-upcoming-date-badge">
+                    {dateBadgeFor(start, new Date(now))}
+                  </span>
+                  <span className="booker-upcoming-time">
+                    {formatTimeHM(start)}
+                    {end ? ` – ${formatTimeHM(end)}` : ""}
+                  </span>
+                  <span className="booker-upcoming-resource">
+                    {booking.resourceName || booking.resourceId}
+                  </span>
+                  <span className={`booker-upcoming-status booker-status-${booking.status}`}>
+                    {STATUS_LABEL[booking.status] || booking.status}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Stage 4g.1 — Resources of interest: the 5 resources the
+          booker uses most, surfaced as quick-rebook tiles. Cards
+          link to the asset's detail page; the "Book again" button
+          is the explicit affordance — modal pre-fill is Future Work. */}
+      <section className="dashboard-section booker-resources-section">
+        <h2 className="dashboard-section-title">Resources of interest</h2>
+
+        {topResources.length === 0 ? (
+          <div className="dashboard-empty-card booker-empty-state">
+            <span>You haven&apos;t booked any resources yet.</span>
+            <button
+              type="button"
+              className="booker-empty-link"
+              onClick={() => navigate?.({
+                sidebar: "Resource Management",
+                tab: "Campus Resources"
+              })}
+            >
+              Browse campus resources →
+            </button>
+          </div>
+        ) : (
+          <div className="booker-resource-grid">
+            {topResources.map((r) => {
+              const live = hydratedResources[r.resourceId];
+              const displayName =
+                (live && !live.__missing && live.resourceName)
+                || r.resourceName;
+              const category =
+                (live && !live.__missing && live.category) || null;
+              return (
+                <div className="booker-resource-card" key={r.resourceId}>
+                  <div className="booker-resource-card-image" aria-hidden>
+                    {initialFor(displayName)}
+                  </div>
+                  <div className="booker-resource-card-name">
+                    {displayName}
+                  </div>
+                  <div className="booker-resource-card-category">
+                    {category || "—"}
+                  </div>
+                  <div className="booker-resource-card-badge">
+                    Booked {r.count} time{r.count === 1 ? "" : "s"}
+                  </div>
+                  <button
+                    type="button"
+                    className="booker-resource-card-button"
+                    onClick={() => navigate?.({
+                      sidebar: "Resource Management",
+                      tab: "Campus Resources",
+                      assetId: r.resourceId
+                    })}
+                  >
+                    Book again
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <section className="dashboard-section">
         <h2 className="dashboard-section-title">Recent activity</h2>

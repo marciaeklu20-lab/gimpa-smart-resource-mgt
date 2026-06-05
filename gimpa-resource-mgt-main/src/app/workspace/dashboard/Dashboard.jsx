@@ -29,7 +29,7 @@ const BOOKER_ROLES = [
   "Lecturer",
   "Teaching Assistant",
   "Course Rep",
-  "General Student"
+  "student"
 ];
 
 export default function Dashboard({ currentUser, navigate }) {
