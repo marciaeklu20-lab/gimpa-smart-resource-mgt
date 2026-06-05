@@ -109,6 +109,396 @@
   font-size: 0.95rem;
 }
 
+/* Stage 4g — role-view shared tokens. Everything below reuses the
+   existing palette/spacing from the original dashboard so each role
+   view feels like part of the same surface. */
+
+/* Greeting row that also hosts a "New booking" / "Open Maintenance"
+   button. Flexbox so the action lands in the gutter on wide screens
+   and stacks underneath on narrow. */
+.dashboard-header-with-action {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dashboard-quick-action {
+  background: linear-gradient(135deg, #003366, #00509d);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-quick-action:hover,
+.dashboard-quick-action:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 51, 102, 0.14);
+  outline: none;
+}
+
+.dashboard-quick-action:focus-visible {
+  outline: 2px solid #1e3a8a;
+  outline-offset: 2px;
+}
+
+/* Section heading shared by every role view. Tight margin so the
+   strip directly below sits close to the title. */
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard-section-title {
+  margin: 0;
+  color: #003366;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+/* Resource Manager / Booker KPI strip — same shape as the
+   maintenance-kpi-strip but lives in a different file so the layout
+   tweaks here don't cascade into the maintenance module. 4-col on
+   desktop, 2-col on tablets, 1-col on phones. The Stores fifth card
+   simply wraps onto the next row via grid auto-flow. */
+.dashboard-rm-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-rm-kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-rm-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Single KPI card. Used as both <button> and <div> depending on
+   whether the card is interactive — keep the chrome identical so
+   visual rhythm doesn't break across the strip. */
+.dashboard-kpi-card {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  padding: 16px 18px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+
+  text-align: left;
+  font-family: inherit;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+
+  min-height: 160px;
+}
+
+button.dashboard-kpi-card {
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+button.dashboard-kpi-card:hover,
+button.dashboard-kpi-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  box-shadow: 0 6px 18px rgba(0, 51, 102, 0.10);
+  outline: none;
+}
+
+button.dashboard-kpi-card:focus-visible {
+  outline: 2px solid #1e3a8a;
+  outline-offset: 2px;
+}
+
+.dashboard-kpi-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0b3c80;
+  line-height: 1;
+}
+
+.dashboard-kpi-sub {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.dashboard-kpi-empty {
+  font-size: 0.84rem;
+  color: #94a3b8;
+}
+
+/* Lifecycle / fault-status breakdown lists inside a KPI card. */
+.dashboard-kpi-breakdown {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.dashboard-kpi-breakdown li {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dashboard-kpi-breakdown li.dashboard-kpi-empty {
+  justify-content: flex-start;
+}
+
+/* Recharts pie sits inside its own card variant — slightly taller so
+   the legend has room. */
+.dashboard-kpi-chart-card {
+  min-height: 200px;
+}
+
+.dashboard-kpi-chart {
+  width: 100%;
+  height: 160px;
+}
+
+/* Recent faults / recent resources mini-rows inside a KPI card. */
+.dashboard-fault-list,
+.dashboard-resource-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-fault-row,
+.dashboard-resource-row {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 0;
+
+  display: grid;
+  align-items: center;
+  gap: 8px;
+
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: #1e293b;
+
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dashboard-fault-row {
+  grid-template-columns: 12px 1fr auto;
+}
+
+.dashboard-resource-row {
+  grid-template-columns: 1fr auto;
+}
+
+.dashboard-fault-row:hover .dashboard-fault-title,
+.dashboard-resource-row:hover .dashboard-resource-name {
+  color: #003366;
+}
+
+.dashboard-fault-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dashboard-fault-title,
+.dashboard-resource-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-fault-time,
+.dashboard-resource-time {
+  color: #94a3b8;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+/* Cross-role activity feed used by both ResourceManagerDashboard and
+   BookerDashboard. Single-column list of clickable rows. */
+.dashboard-activity-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dashboard-activity-row {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 4px 12px;
+
+  font-family: inherit;
+  color: #1e293b;
+  text-align: left;
+  cursor: pointer;
+
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-activity-row:hover,
+.dashboard-activity-row:focus-visible {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.08);
+  outline: none;
+}
+
+.dashboard-activity-kind {
+  grid-row: span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 4px 8px;
+  border-radius: 999px;
+
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-activity-kind-booking {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.dashboard-activity-kind-fault {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.dashboard-activity-title {
+  font-weight: 700;
+  color: #003366;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-activity-sub {
+  grid-column: 2 / 3;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.dashboard-activity-time {
+  grid-row: span 2;
+  align-self: center;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.dashboard-empty-card {
+  padding: 18px 22px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+/* Responsibility breakdown (Platform). Six tiles of equal weight. */
+.dashboard-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.dashboard-breakdown-tile {
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  padding: 14px 16px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-breakdown-tile.dashboard-breakdown-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.dashboard-breakdown-role {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.dashboard-breakdown-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #0b3c80;
+  line-height: 1;
+}
+
+.dashboard-breakdown-meta {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Maintenance role embed — the existing MaintenanceDashboard supplies
+   its own heading, so the wrapper just adds vertical breathing room
+   around it. */
+.dashboard-maintenance-embed {
+  width: 100%;
+}
+
 @media (max-width: 640px) {
   .dashboard-container {
     padding: 16px;

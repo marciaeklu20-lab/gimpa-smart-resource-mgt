@@ -1,136 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
+// Stage 4g: thin role-routing wrapper. The previous all-in-one
+// Dashboard.jsx (admin quick-stats + RecentActivity, non-admin "use
+// the sidebar" note) is gone — each role now lands on a tailored
+// surface in role-views/. Keep this wrapper minimal: pick a view,
+// pass through props, fall back to a clear message for any role
+// that doesn't have a configured view yet.
 
 import {
-  getFirestore,
-  collection,
-  query,
-  where,
-  onSnapshot
-} from "firebase/firestore";
+  PLATFORM_ADMINS,
+  RESOURCE_MANAGERS,
+  MAINTENANCE_ROLES
+} from "@/app/lib/roles";
 
-import app from "@/firebase/config";
-
-import RecentActivity from "@/app/workspace/analytics/RecentActivity";
-
-import { ALL_BOOKING_ADMINS } from "@/app/lib/roles";
+import PlatformDashboard from "./role-views/PlatformDashboard";
+import ResourceManagerDashboard from "./role-views/ResourceManagerDashboard";
+import MaintenanceDashboardEmbed from "./role-views/MaintenanceDashboardEmbed";
+import BookerDashboard from "./role-views/BookerDashboard";
 
 import "@/app/styles/workspace/dashboard.css";
 
-const db = getFirestore(app);
-
-const todayISODate = () => {
-  // ISO YYYY-MM-DD for today, in the user's local timezone. Used to
-  // bucket booking startDates (also stored as ISO strings) by day.
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-};
+// Roles that book resources for themselves (faculty + students). Kept
+// here rather than in roles.js because the "booker" tier is a UI
+// concept — booking permission itself is gated by cannotBookRoles in
+// permissions.js. If those lists diverge later, we'll need to
+// reconcile.
+const BOOKER_ROLES = [
+  "Lecturer",
+  "Teaching Assistant",
+  "Course Rep",
+  "General Student"
+];
 
 export default function Dashboard({ currentUser, navigate }) {
 
-  const [pendingCount, setPendingCount] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
+  const role = currentUser?.role;
 
-  const isAdmin = !!(currentUser && ALL_BOOKING_ADMINS.includes(currentUser.role));
-
-  // Quick-stats listeners — admin-only because non-admins can't read
-  // the full bookings collection per Firestore rules.
-  useEffect(() => {
-
-    if (!isAdmin) {
-      setPendingCount(0);
-      setTodayCount(0);
-      return;
-    }
-
-    const unsubs = [];
-
-    unsubs.push(onSnapshot(
-      query(collection(db, "bookings"), where("status", "==", "pending")),
-      (snap) => setPendingCount(snap.size)
-    ));
-
-    unsubs.push(onSnapshot(
-      collection(db, "bookings"),
-      (snap) => {
-        const today = todayISODate();
-        const count = snap.docs.filter((d) => {
-          const start = d.data().startDate;
-          return typeof start === "string" && start.startsWith(today);
-        }).length;
-        setTodayCount(count);
-      }
-    ));
-
-    return () => unsubs.forEach((u) => u());
-
-  }, [isAdmin]);
-
-  const firstName = currentUser?.fullName?.split(" ")[0] || "there";
-
-  return (
-
-    <div className="dashboard-container">
-
-      <div className="dashboard-header">
-        <h1 className="dashboard-greeting">Welcome back, {firstName}</h1>
-        <p className="dashboard-subtitle">
-          Here&apos;s what&apos;s happening across GIMPA today.
-        </p>
-      </div>
-
-      {isAdmin && (
-        <div className="dashboard-quick-stats">
-
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() => navigate?.({
-              sidebar: "Resource Management",
-              tab: "Bookings",
-              filter: { status: "pending" }
-            })}
-          >
-            <div className="dashboard-stat-value">{pendingCount}</div>
-            <div className="dashboard-stat-label">Pending approvals</div>
-          </button>
-
-          <button
-            type="button"
-            className="dashboard-stat-card"
-            onClick={() => navigate?.({
-              sidebar: "Resource Management",
-              tab: "Bookings",
-              filter: { dateKey: todayISODate() }
-            })}
-          >
-            <div className="dashboard-stat-value">{todayCount}</div>
-            <div className="dashboard-stat-label">Bookings today</div>
-          </button>
-
-        </div>
-      )}
-
-      {isAdmin ? (
-
-        <div className="dashboard-activity-wrapper">
-          <RecentActivity navigate={navigate} />
-        </div>
-
-      ) : (
-
+  if (!role) {
+    // Shouldn't normally happen — workspace/page.jsx gates on a loaded
+    // currentUser before rendering Dashboard — but the explicit fallback
+    // keeps this component robust in isolation (e.g., Storybook later).
+    return (
+      <div className="dashboard-container">
         <div className="dashboard-non-admin-note">
-          Use the sidebar to find resources or manage your bookings.
+          Loading your dashboard…
         </div>
+      </div>
+    );
+  }
 
-      )}
+  if (PLATFORM_ADMINS.includes(role)) {
+    return <PlatformDashboard currentUser={currentUser} navigate={navigate} />;
+  }
 
+  if (RESOURCE_MANAGERS.includes(role)) {
+    return <ResourceManagerDashboard currentUser={currentUser} navigate={navigate} />;
+  }
+
+  if (MAINTENANCE_ROLES.includes(role)) {
+    return <MaintenanceDashboardEmbed currentUser={currentUser} navigate={navigate} />;
+  }
+
+  if (BOOKER_ROLES.includes(role)) {
+    return <BookerDashboard currentUser={currentUser} navigate={navigate} />;
+  }
+
+  // Roles that don't fit any view (Receptionist, Administrative Officer,
+  // Higher Level Management, etc.) — show a clear "not configured"
+  // message rather than a blank screen so we know to add a view later.
+  return (
+    <div className="dashboard-container">
+      <div className="dashboard-header">
+        <h1 className="dashboard-greeting">
+          Welcome, {currentUser?.fullName?.split(" ")[0] || "there"}
+        </h1>
+      </div>
+      <div className="dashboard-non-admin-note">
+        Dashboard not configured for your role yet — use the sidebar to
+        navigate to the modules available to you.
+      </div>
     </div>
-
   );
-
 }
