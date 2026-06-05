@@ -22,6 +22,8 @@ import app from "@/firebase/config";
 
 import AddResourceForm from "./add-resource/AddResourceForm";
 
+import BulkImportModal from "./BulkImportModal";
+
 import CampusResourceControls from "./components/CampusResourceControls";
 
 import ResourceTable from "./components/ResourceTable";
@@ -51,6 +53,9 @@ export default function CampusResource({
   const auth = getAuth(app);
 
   const [showModal, setShowModal] = useState(false);
+
+  // Stage 4i: bulk-import wizard.
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   const [resources, setResources] = useState([]);
 
@@ -310,6 +315,7 @@ export default function CampusResource({
         setSearchTerm={setSearchTerm}
         typesForCategory={typesForCategory}
         setShowModal={setShowModal}
+        setShowBulkImport={setShowBulkImport}
       />
 
       <CategoryCards
@@ -353,6 +359,16 @@ export default function CampusResource({
             setShowModal(false);
             fetchResources();
           }}
+        />
+
+      )}
+
+      {showBulkImport && (
+
+        <BulkImportModal
+          currentUser={currentUser}
+          onClose={() => setShowBulkImport(false)}
+          onImported={() => fetchResources()}
         />
 
       )}

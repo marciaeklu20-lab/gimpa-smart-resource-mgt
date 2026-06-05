@@ -1,0 +1,326 @@
+/* Stage 4i — Bulk Import wizard styles. */
+
+.bulk-import-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.bulk-import-modal {
+  background: var(--surface-bg, #ffffff);
+  color: var(--text-primary, #0f172a);
+  border-radius: 12px;
+  width: min(960px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+/* ----- Header ----- */
+.bulk-import-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.bulk-import-title-block h2 {
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.bulk-import-step-indicator {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.bulk-import-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+.bulk-import-close-btn:hover { background: rgba(148, 163, 184, 0.12); }
+
+/* ----- Body ----- */
+.bulk-import-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+/* ----- Step 1: template + dropzone ----- */
+.bulk-import-template-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+.bulk-import-template-row p { margin: 0; font-size: 14px; }
+
+.bulk-import-template-btn {
+  background: transparent;
+  border: 1px solid #6366f1;
+  color: #6366f1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bulk-import-template-btn:hover { background: rgba(99, 102, 241, 0.08); }
+
+.bulk-import-dropzone {
+  border: 2px dashed rgba(148, 163, 184, 0.5);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.6);
+  padding: 36px 16px;
+  text-align: center;
+  transition: border-color 120ms, background-color 120ms;
+}
+.bulk-import-dropzone.drag-over {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.bulk-import-dropzone-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-import-dropzone-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.bulk-import-dropzone-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+}
+
+.bulk-import-file-picker {
+  margin-top: 8px;
+  display: inline-block;
+  padding: 8px 14px;
+  background: #6366f1;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bulk-import-file-picker:hover { background: #4f46e5; }
+.bulk-import-file-picker input { display: none; }
+
+/* ----- Step 2: summary + table ----- */
+.bulk-import-csv-errors,
+.bulk-import-csv-warnings {
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bulk-import-csv-errors {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #b91c1c;
+}
+.bulk-import-csv-warnings {
+  background: rgba(234, 179, 8, 0.10);
+  border: 1px solid rgba(234, 179, 8, 0.30);
+  color: #92400e;
+}
+.bulk-import-csv-errors ul,
+.bulk-import-csv-warnings ul {
+  margin: 6px 0 0 16px;
+  padding: 0;
+}
+
+.bulk-import-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.bulk-import-summary-stat {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.bulk-import-summary-valid {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+.bulk-import-summary-invalid {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+.bulk-import-summary-warnings {
+  background: rgba(234, 179, 8, 0.16);
+  color: #92400e;
+}
+.bulk-import-summary-total {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.bulk-import-table-wrap {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 360px;
+}
+
+.bulk-import-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.bulk-import-table thead {
+  position: sticky;
+  top: 0;
+  background: rgba(248, 250, 252, 0.95);
+  backdrop-filter: blur(4px);
+  z-index: 1;
+}
+.bulk-import-table th,
+.bulk-import-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  vertical-align: top;
+}
+.bulk-import-table th {
+  font-weight: 600;
+  color: var(--text-secondary, #475569);
+}
+.bulk-import-table tr.row-error    { background: rgba(239, 68, 68, 0.04); }
+.bulk-import-table tr.row-warning  { background: rgba(234, 179, 8, 0.04); }
+
+.bulk-import-status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bulk-import-status-pill.status-ok      { background: rgba(34, 197, 94, 0.12);  color: #15803d; }
+.bulk-import-status-pill.status-warning { background: rgba(234, 179, 8, 0.16);  color: #92400e; }
+.bulk-import-status-pill.status-error   { background: rgba(239, 68, 68, 0.12);  color: #b91c1c; }
+
+.bulk-import-detail-cell {
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+  max-width: 360px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.bulk-import-progress {
+  font-size: 13px;
+  color: var(--text-secondary, #475569);
+  text-align: right;
+}
+
+/* ----- Step 3: result banner + failures ----- */
+.bulk-import-result-banner {
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 14px;
+}
+.bulk-import-result-banner.status-complete {
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #15803d;
+}
+.bulk-import-result-banner.status-partial {
+  background: rgba(234, 179, 8, 0.10);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #92400e;
+}
+.bulk-import-result-banner.status-failed {
+  background: rgba(239, 68, 68, 0.10);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #b91c1c;
+}
+
+.bulk-import-failures-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ----- Footer actions ----- */
+.bulk-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.bulk-import-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: var(--text-primary, #0f172a);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.bulk-import-cancel-btn:hover { background: rgba(148, 163, 184, 0.10); }
+.bulk-import-cancel-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bulk-import-primary-btn {
+  background: #6366f1;
+  border: none;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bulk-import-primary-btn:hover { background: #4f46e5; }
+.bulk-import-primary-btn:disabled {
+  background: rgba(99, 102, 241, 0.45);
+  cursor: not-allowed;
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 720px) {
+  .bulk-import-overlay { padding: 12px; }
+  .bulk-import-body { padding: 16px; }
+  .bulk-import-actions { flex-direction: column-reverse; }
+  .bulk-import-actions button { width: 100%; }
+}

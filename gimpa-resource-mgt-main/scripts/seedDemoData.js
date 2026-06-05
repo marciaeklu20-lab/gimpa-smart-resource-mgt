@@ -275,6 +275,16 @@ const wipeSupplyRequestsCollection = async () => {
   return count;
 };
 
+// Stage 4i: imports collection wipe. Flat collection, no subcolls.
+const wipeImportsCollection = async () => {
+  const snap = await db.collection("imports").get();
+  if (snap.empty) return 0;
+  const batch = db.batch();
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await batch.commit();
+  return snap.size;
+};
+
 const wipeFaultsCollection = async () => {
   const snap = await db.collection("faults").get();
   if (snap.empty) return 0;
@@ -1907,6 +1917,31 @@ function adminNow() {
 }
 
 // ---------------------------------------------------------------
+// 7c. Stage 4i — historical bulk-import audit doc.
+// ---------------------------------------------------------------
+// The imports collection is empty until someone runs a bulk CSV
+// import through the UI. Pre-seeding one historical entry from the
+// super-admin gives the future import-history sidebar a non-empty
+// view to demo against and makes the audit shape visible at a glance.
+const seedHistoricalImport = async (superAdminActor, resourceCount) => {
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  await db.collection("imports").add({
+    importedAt:    admin.firestore.Timestamp.fromMillis(Date.now() - thirtyDaysMs),
+    importedBy: {
+      uid:  superAdminActor.uid,
+      name: superAdminActor.name,
+      role: superAdminActor.role
+    },
+    csvFilename:   "initial-seed.csv",
+    resourceCount,
+    failureCount:  0,
+    errors:        [],
+    status:        "complete"
+  });
+  return 1;
+};
+
+// ---------------------------------------------------------------
 // 8. Main.
 // ---------------------------------------------------------------
 
@@ -1926,11 +1961,13 @@ function adminNow() {
   const wipedSupplyRequests = await wipeSupplyRequestsCollection();
   const wipedFaults = await wipeFaultsCollection();
   const wipedBookings = await wipeBookingsCollection();
+  const wipedImports = await wipeImportsCollection();
   const wipedResources = await wipeResourcesCollection();
   const wipedUsers = await wipeUsersExceptSuperAdmin();
   console.log(
     `Wiped ${wipedSupplyRequests} supply requests, ${wipedFaults} faults, ` +
-    `${wipedBookings} bookings, ${wipedResources} resources, ${wipedUsers} users.`
+    `${wipedBookings} bookings, ${wipedImports} imports, ` +
+    `${wipedResources} resources, ${wipedUsers} users.`
   );
 
   let seededAccounts = [];
@@ -2010,6 +2047,10 @@ function adminNow() {
     await seedSupplyRequests(accountsByEmail, faultIdByResource);
   console.log(`Seeded ${supplyRequestCount} supply requests.`);
 
+  console.log("\nSeeding historical import audit doc...");
+  const importCount = await seedHistoricalImport(superAdminActor, resourceCount);
+  console.log(`Seeded ${importCount} historical import.`);
+
   printSummary({
     accounts: seededAccounts,
     resourceCount,
@@ -2017,6 +2058,7 @@ function adminNow() {
     bookingCount,
     faultCount,
     supplyRequestCount,
+    importCount,
     skipAuth: false
   });
 
@@ -2027,7 +2069,7 @@ function adminNow() {
   process.exit(1);
 });
 
-function printSummary({ accounts, resourceCount, transferCount, bookingCount, faultCount, supplyRequestCount, skipAuth }) {
+function printSummary({ accounts, resourceCount, transferCount, bookingCount, faultCount, supplyRequestCount, importCount, skipAuth }) {
   console.log("\n=====================================");
   console.log("Demo data ready.");
   console.log("=====================================\n");
@@ -2050,6 +2092,9 @@ function printSummary({ accounts, resourceCount, transferCount, bookingCount, fa
   }
   if (supplyRequestCount != null) {
     console.log(`Supply requests:   ${supplyRequestCount}`);
+  }
+  if (importCount != null) {
+    console.log(`Imports seeded:    ${importCount}`);
   }
   console.log(`Super-admin preserved: ${SUPER_ADMIN_EMAIL}`);
   console.log("\nDone. Database ready for demo.\n");

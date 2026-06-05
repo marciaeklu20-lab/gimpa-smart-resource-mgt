@@ -721,6 +721,36 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // imports/{importId}  (Stage 4i)
+    //
+    // Audit log for bulk CSV resource imports — one doc per import
+    // attempt, written by bulkImportResources after all batches commit
+    // (or fail).
+    //
+    // Read:    platform admins only. Resource managers don't see the
+    //          aggregated history (out of scope for 4i).
+    // Create:  platform admins OR any resource manager. importedBy.uid
+    //          must match the caller (so a malicious user can't forge
+    //          an audit entry attributing the import to someone else).
+    // Update/
+    // Delete:  denied — audit entries are immutable.
+    //
+    // Payload shape is enforced client-side; rules deliberately stay
+    // permissive on field constraints to match statusHistory's
+    // approach. Tighten if forged-payload abuse shows up.
+    // ---------------------------------------------------------------
+    match /imports/{importId} {
+
+      allow read: if isApproved() && isAdmin();
+
+      allow create: if isApproved()
+        && (isAdmin() || isResourceManager())
+        && request.resource.data.importedBy.uid == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
     // faults/{faultId}/messages/{messageId}  (Stage 4e)
     //
     // Per-fault chat thread. Same visibility model as the parent fault:

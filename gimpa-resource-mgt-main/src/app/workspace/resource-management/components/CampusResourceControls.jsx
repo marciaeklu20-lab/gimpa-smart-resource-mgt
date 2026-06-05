@@ -8,6 +8,11 @@ import { FaSearch } from "react-icons/fa";
 // super_admin upstream. Anyone outside that list — including
 // Maintenance Staff / Maintenance Admin — sees the page read-only
 // and the button stays hidden.
+//
+// Stage 4i: "Bulk Import" button sits beside "+ Add Resource" with
+// the same gating list. Row-level responsibility filtering happens
+// inside the modal (parseResourceCsv); the button itself just opens
+// the wizard.
 export default function CampusResourceControls({
   allowedRoles,
   userRole,
@@ -16,7 +21,8 @@ export default function CampusResourceControls({
   searchTerm,
   setSearchTerm,
   typesForCategory,
-  setShowModal
+  setShowModal,
+  setShowBulkImport
 }) {
 
   return (
@@ -25,12 +31,24 @@ export default function CampusResourceControls({
 
       {allowedRoles.includes(userRole) && (
 
-        <button
-          className="add-resource-btn"
-          onClick={() => setShowModal(true)}
-        >
-          + Add Resource
-        </button>
+        <>
+
+          <button
+            className="add-resource-btn"
+            onClick={() => setShowModal(true)}
+          >
+            + Add Resource
+          </button>
+
+          <button
+            type="button"
+            className="bulk-import-btn"
+            onClick={() => setShowBulkImport(true)}
+          >
+            Bulk Import
+          </button>
+
+        </>
 
       )}
 

@@ -47,6 +47,28 @@
   transform: scale(0.97);
 }
 
+/* Stage 4i — Bulk Import button. Matches the outlined-secondary
+   shape used elsewhere for non-primary header actions. */
+.bulk-import-btn {
+  background-color: #ffffff;
+  color: #475569;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  padding: 10px 18px;
+  width: fit-content;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.bulk-import-btn:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+.bulk-import-btn:active {
+  transform: scale(0.97);
+}
+
 
 /* Search Bar Wrapper */
 
