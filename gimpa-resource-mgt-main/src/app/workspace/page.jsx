@@ -282,11 +282,10 @@ export default function WorkspacePage() {
           <Users />
         )}
 
-          {/* ANALYTICS */}
+          {/* ANALYTICS — Stage 4j: role-routing wrapper handles per-role
+              views internally; no top-level admin gate any more. */}
           {activeSidebar === "Analytics" && (
-            PLATFORM_ADMINS.includes(userRole)
-              ? <Analytics />
-              : <div className="workspace-loading">Analytics is admin-only.</div>
+            <Analytics currentUser={currentUser} />
           )}
 
         </div>
