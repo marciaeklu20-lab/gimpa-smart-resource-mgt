@@ -41,7 +41,7 @@ const STATUS_LABEL = {
   closed:       "Closed"
 };
 
-export default function FaultsList({ navigate }) {
+export default function FaultsList({ navigate, initialFaultId }) {
 
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -115,6 +115,22 @@ export default function FaultsList({ navigate }) {
     const t = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(t);
   }, []);
+
+  // Stage 4f: deep-link from AssetDetailPanel "Resolved from fault: X"
+  // entries. When the parent passes a faultId, select it so the detail
+  // panel populates immediately. Re-fires on every new id; if the
+  // "mine" filter would hide it, the visible-set effect below clears
+  // it back out, but we still attempt the select first — the parent
+  // can decide whether to land on "all" before deep-linking.
+  useEffect(() => {
+    if (initialFaultId) {
+      setSelectedFaultId(initialFaultId);
+      // Default to "all" when arriving from a deep-link so the target
+      // fault isn't filtered out of the technician's "mine" view.
+      setFilter("all");
+      setFilterInitialized(true);
+    }
+  }, [initialFaultId]);
 
   // Visible faults — gated by the filter tab. "mine" filters to the
   // current user's assignments; "all" passes everything through.

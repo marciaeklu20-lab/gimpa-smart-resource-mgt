@@ -42,7 +42,8 @@ import "@/app/styles/resource-management/asset-master-detail.css";
 
 export default function CampusResource({
   userRole,
-  initialAssetId
+  initialAssetId,
+  navigate
 }) {
 
   const db = getFirestore(app);
@@ -337,6 +338,7 @@ export default function CampusResource({
             selectedAsset={selectedAsset}
             currentUserRole={currentUserRole}
             currentUser={currentUser}
+            navigate={navigate}
             onClose={() => setSelectedAssetId(null)}
           />
 

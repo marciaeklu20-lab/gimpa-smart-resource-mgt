@@ -342,6 +342,27 @@
   font-weight: 500;
 }
 
+/* Stage 4f: clickable fault id inside a "Resolved from fault: X"
+   condition-history entry. Looks like an inline link, opens the
+   fault in Maintenance via navigate(). */
+.history-fault-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+
+  color: #00509d;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+
+  cursor: pointer;
+}
+
+.history-fault-link:hover {
+  color: #003366;
+}
+
 /* ---------------------------------------------------------------
    Master table row selection
 --------------------------------------------------------------- */

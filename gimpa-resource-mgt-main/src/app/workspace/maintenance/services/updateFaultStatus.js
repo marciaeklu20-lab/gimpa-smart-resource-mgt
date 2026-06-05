@@ -23,6 +23,17 @@ const VALID_NEXT_STATUS = new Set([
   "closed"
 ]);
 
+// Stage 4f: mirrors CONDITIONS in src/app/lib/resourceMeta.js. The
+// resolver MUST pick one when transitioning to "resolved" — the choice
+// becomes the asset's new condition.
+const VALID_CONDITIONS = new Set([
+  "excellent",
+  "good",
+  "fair",
+  "poor",
+  "out_of_service"
+]);
+
 const MAX_NOTES_LENGTH = 2000;
 
 // Build the actor payload stamped onto both the fault doc and the
@@ -38,6 +49,7 @@ export const updateFaultStatus = async ({
   faultId,
   newStatus,
   notes,
+  newCondition,
   currentUser
 }) => {
 
@@ -66,6 +78,17 @@ export const updateFaultStatus = async ({
     throw new Error("NOTES_TOO_LONG");
   }
 
+  // Stage 4f: resolving REQUIRES a new condition. Anything else
+  // ignores the field entirely (the UI doesn't even surface it).
+  if (newStatus === "resolved") {
+    if (!newCondition) {
+      throw new Error("CONDITION_REQUIRED");
+    }
+    if (!VALID_CONDITIONS.has(newCondition)) {
+      throw new Error("CONDITION_INVALID");
+    }
+  }
+
   // Read current status so the audit entry records the actual
   // transition (oldStatus → newStatus). One extra round-trip — the
   // statusHistory display in FaultDetailPanel relies on this field.
@@ -74,7 +97,8 @@ export const updateFaultStatus = async ({
   if (!snap.exists()) {
     throw new Error("FAULT_NOT_FOUND");
   }
-  const oldStatus = snap.data().status || null;
+  const faultData = snap.data();
+  const oldStatus = faultData.status || null;
 
   const actor = actorFor(currentUser);
 
@@ -94,6 +118,7 @@ export const updateFaultStatus = async ({
     faultPatch.resolvedAt = serverTimestamp();
     faultPatch.resolvedBy = actor;
     faultPatch.resolutionNotes = trimmedNotes;
+    faultPatch.newConditionAfterResolution = newCondition;
   } else if (newStatus === "closed") {
     faultPatch.closedAt = serverTimestamp();
     faultPatch.closedBy = actor;
@@ -120,6 +145,43 @@ export const updateFaultStatus = async ({
   const batch = writeBatch(db);
   batch.update(faultRef, faultPatch);
   batch.set(historyRef, historyEntry);
+
+  // Stage 4f: closing the maintenance loop. When resolving, the
+  // fault's resource gets its condition flipped AND an immutable
+  // conditionHistory entry written, both inside the same batch as
+  // the fault transition. Either all four ops commit or none do.
+  if (newStatus === "resolved") {
+    const resourceDocId = faultData.resourceId;
+    if (!resourceDocId) {
+      throw new Error("FAULT_MISSING_RESOURCE");
+    }
+    const resourceRef = doc(db, "resources", resourceDocId);
+    const resourceSnap = await getDoc(resourceRef);
+    if (!resourceSnap.exists()) {
+      // Defensive — the fault's resourceId points to a deleted asset.
+      // Surfacing this lets the UI display a clean error rather than
+      // committing an orphan fault update.
+      throw new Error("RESOURCE_NOT_FOUND");
+    }
+    const oldCondition = resourceSnap.data().condition || null;
+
+    batch.update(resourceRef, {
+      condition: newCondition,
+      updatedAt: serverTimestamp()
+    });
+
+    const condHistoryRef = doc(
+      collection(db, "resources", resourceDocId, "conditionHistory")
+    );
+    batch.set(condHistoryRef, {
+      changedAt: serverTimestamp(),
+      oldCondition,
+      newCondition,
+      reason: `Resolved from fault: ${faultId}`,
+      changedBy: actor
+    });
+  }
+
   await batch.commit();
 
 };

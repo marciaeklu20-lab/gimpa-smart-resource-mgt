@@ -1220,7 +1220,21 @@ const DEMO_FAULTS = [
     imageUrl: null,
     // Pre-assigned to the second technician so "My Assignments" shows
     // them a single fault while the cracked-lens stays with demo.maintenance.
-    assignToEmail: "demo.maintenance2@gimpa.edu.gh"
+    assignToEmail: "demo.maintenance2@gimpa.edu.gh",
+    // Stage 4f: pre-resolved by the assignee so reviewers see the
+    // closed maintenance loop on first load — the EQP-004 asset's
+    // condition flips from POOR to GOOD via the resolve flow's atomic
+    // 4-op batch, and its conditionHistory shows the "Resolved from
+    // fault: <id>" entry. lifecycleStatus stays IN_MAINTENANCE per
+    // spec (no auto lifecycle changes).
+    resolveWith: {
+      resolverEmail: "demo.maintenance2@gimpa.edu.gh",
+      newCondition: "good",
+      notes:
+        "Battery replaced; tested over 90 minutes of recording " +
+        "without dropouts. Back to spec.",
+      minutesAgo: 30
+    }
   },
   {
     resourceId: "EQP-001",
@@ -1312,6 +1326,30 @@ const seedFaults = async (accountsByEmail) => {
     const faultRef = db.collection("faults").doc();
     faultIdByResource[f.resourceId] = faultRef.id;
 
+    // Stage 4f: resolveWith pre-resolves the fault to demonstrate the
+    // closed maintenance loop. Resolver actor + backdated timestamp +
+    // new condition all derived here so the batch below mirrors the
+    // live updateFaultStatus.js 4-op write.
+    let resolveActor = null;
+    let resolvedAtTs = null;
+    if (f.resolveWith) {
+      const resolverAccount = accountsByEmail[f.resolveWith.resolverEmail];
+      if (resolverAccount) {
+        resolveActor = {
+          uid: resolverAccount.uid,
+          name: resolverAccount.fullName,
+          role: resolverAccount.userDoc.role
+        };
+      }
+      const minutesAgo = typeof f.resolveWith.minutesAgo === "number"
+        ? f.resolveWith.minutesAgo
+        : 30;
+      resolvedAtTs = admin.firestore.Timestamp.fromMillis(
+        Date.now() - minutesAgo * 60 * 1000
+      );
+    }
+    const isPreResolved = !!(f.resolveWith && resolveActor && resolvedAtTs);
+
     const faultData = {
       resourceId: f.resourceId,
       resourceName: f.resourceName,
@@ -1328,7 +1366,7 @@ const seedFaults = async (accountsByEmail) => {
       imageUrl: f.imageUrl,
       imageStoragePath: null,
 
-      status: "pending",
+      status: isPreResolved ? "resolved" : "pending",
       routedToRoles: ["super_admin", "Maintenance Admin", "Maintenance Staff"],
 
       // Stage 4e.5 assignment fields. assignedAt is stamped with
@@ -1345,10 +1383,12 @@ const seedFaults = async (accountsByEmail) => {
       acknowledgedAt: null,
       acknowledgedBy: null,
       inProgressAt: null,
-      resolvedAt: null,
-      resolvedBy: null,
-      resolutionNotes: null,
-      newConditionAfterResolution: null
+      resolvedAt: isPreResolved ? resolvedAtTs : null,
+      resolvedBy: isPreResolved ? resolveActor : null,
+      resolutionNotes: isPreResolved ? f.resolveWith.notes : null,
+      newConditionAfterResolution: isPreResolved
+        ? f.resolveWith.newCondition
+        : null
     };
 
     const historyRef = faultRef.collection("statusHistory").doc();
@@ -1375,6 +1415,42 @@ const seedFaults = async (accountsByEmail) => {
         newAssignee: assignedTo,
         reason: "Initial assignment by maintenance admin",
         changedBy: maintAdminActor
+      });
+    }
+
+    // Stage 4f: pre-resolved demo path — same 4-op atomic shape as
+    // updateFaultStatus.js, folded into the seed batch so the seed
+    // emits the closed-loop demo in a single commit:
+    //   1. fault doc set above (status: "resolved")
+    //   2. second statusHistory entry: pending → resolved
+    //   3. resource doc condition flip
+    //   4. resource conditionHistory entry referencing the fault id
+    if (isPreResolved) {
+      const resolvedHistoryRef = faultRef.collection("statusHistory").doc();
+      batch.set(resolvedHistoryRef, {
+        changedAt: resolvedAtTs,
+        oldStatus: "pending",
+        newStatus: "resolved",
+        notes: f.resolveWith.notes,
+        changedBy: resolveActor
+      });
+
+      const resourceRef = db.collection("resources").doc(f.resourceId);
+      batch.update(resourceRef, {
+        condition: f.resolveWith.newCondition,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      const condHistoryRef = resourceRef.collection("conditionHistory").doc();
+      batch.set(condHistoryRef, {
+        changedAt: resolvedAtTs,
+        // oldCondition mirrors what seedResources just wrote — the
+        // catalogue entry is the source of truth for the pre-resolve
+        // condition.
+        oldCondition: findDemoResource(f.resourceId)?.condition || null,
+        newCondition: f.resolveWith.newCondition,
+        reason: `Resolved from fault: ${faultRef.id}`,
+        changedBy: resolveActor
       });
     }
 

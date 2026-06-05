@@ -43,10 +43,23 @@ const ReportFaultModal = dynamic(
   { ssr: false }
 );
 
+// Stage 4f: detect a conditionHistory entry written by the resolve flow
+// so its reason "Resolved from fault: <faultId>" can render as a
+// clickable navigation back into Maintenance. updateFaultStatus.js
+// owns the exact string format; keep these in sync.
+const RESOLVED_FROM_FAULT_RE = /^Resolved from fault:\s*(\S+)$/;
+
+const parseResolvedFromFault = (reason) => {
+  if (typeof reason !== "string") return null;
+  const m = reason.match(RESOLVED_FROM_FAULT_RE);
+  return m ? m[1] : null;
+};
+
 export default function AssetDetailPanel({
   selectedAsset,
   currentUserRole,
   currentUser,
+  navigate,
   onClose
 }) {
 
@@ -279,15 +292,32 @@ export default function AssetDetailPanel({
             title="Condition History"
             entries={conditionHistory}
             now={now}
-            renderEntry={(e) => (
-              <>
-                {e.oldCondition ? `${conditionLabel(e.oldCondition)} → ` : ""}
-                <strong>{conditionLabel(e.newCondition)}</strong>
-                {e.reason && (
-                  <span className="history-reason"> · {e.reason}</span>
-                )}
-              </>
-            )}
+            renderEntry={(e) => {
+              const faultId = parseResolvedFromFault(e.reason);
+              return (
+                <>
+                  {e.oldCondition ? `${conditionLabel(e.oldCondition)} → ` : ""}
+                  <strong>{conditionLabel(e.newCondition)}</strong>
+                  {e.reason && (
+                    faultId ? (
+                      <>
+                        <span className="history-reason"> · Resolved from fault: </span>
+                        <button
+                          type="button"
+                          className="history-fault-link"
+                          onClick={() => navigate && navigate({ faultId })}
+                          title="Open this fault in Maintenance"
+                        >
+                          {faultId.slice(0, 8)}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="history-reason"> · {e.reason}</span>
+                    )
+                  )}
+                </>
+              );
+            }}
           />
 
           <HistorySection

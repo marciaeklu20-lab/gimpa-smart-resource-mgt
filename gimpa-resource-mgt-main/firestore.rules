@@ -211,6 +211,11 @@ service cloud.firestore {
       // Update: platform admins go through; resource managers can
       // edit ONLY resources in their own categories; Maintenance Staff
       // (Stage 4a) retain the narrow lifecycleStatus/condition patch.
+      // Stage 4f: "updatedAt" is now allowed in the maintenance patch
+      // because updateFaultStatus writes it alongside condition when
+      // resolving a fault. isMaintenanceStaff() already covers super_
+      // admin + Maintenance Admin + Maintenance Staff, so the resolve
+      // path works for all three tiers.
       allow update: if isApproved() && (
         isAdmin()
         || (
@@ -220,7 +225,7 @@ service cloud.firestore {
         || (
           isMaintenanceStaff()
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(["lifecycleStatus", "condition"])
+               .hasOnly(["lifecycleStatus", "condition", "updatedAt"])
         )
       );
 

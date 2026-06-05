@@ -50,19 +50,34 @@ export default function WorkspacePage() {
   // bookingsView so a stale assetId doesn't follow the user around.
   const [resourceView, setResourceView] = useState({ assetId: null });
 
+  // Stage 4f: deep-link from AssetDetailPanel "Resolved from fault: X"
+  // entry — when set, Maintenance picks this up via initialFaultId
+  // and selects the matching row in its master table. Mirrors the
+  // resourceView pattern.
+  const [maintenanceView, setMaintenanceView] = useState({ faultId: null });
+
   // Single cross-tab navigation helper. Dashboard / RecentActivity call
   // this instead of touching the individual setters directly. When `tab`
   // is omitted, picks the natural landing tab for that sidebar — mirrors
   // the Sidebar onClick behaviour so callers don't need to know it.
-  const navigate = ({ sidebar, tab, filter, expandedId, assetId } = {}) => {
-    if (sidebar) setActiveSidebar(sidebar);
-    if (tab) {
-      setActiveTab(tab);
-    } else if (sidebar === "Admin Dashboard") {
-      setActiveTab("Approvals");
-    } else if (sidebar === "Resource Management") {
-      setActiveTab("Campus Resources");
-    }
+  const navigate = ({ sidebar, tab, filter, expandedId, assetId, faultId } = {}) => {
+    // Stage 4f: faultId implies Maintenance → Faults, regardless of
+    // what sidebar the caller passed. Lets condition-history entries
+    // navigate without each call site having to spell out the route.
+    const effectiveSidebar = faultId ? "Maintenance" : sidebar;
+    const effectiveTab = faultId
+      ? "Faults"
+      : tab
+        ? tab
+        : sidebar === "Admin Dashboard"
+          ? "Approvals"
+          : sidebar === "Resource Management"
+            ? "Campus Resources"
+            : null;
+
+    if (effectiveSidebar) setActiveSidebar(effectiveSidebar);
+    if (effectiveTab) setActiveTab(effectiveTab);
+
     // Always replace bookingsView with a fresh object reference so the
     // BookingTable effects (which depend on referential identity) fire
     // even when the same filter is being applied again.
@@ -71,6 +86,7 @@ export default function WorkspacePage() {
       expandedId: expandedId ?? null
     });
     setResourceView({ assetId: assetId ?? null });
+    setMaintenanceView({ faultId: faultId ?? null });
   };
 
   // Auto-clear bookingsView whenever the user navigates away from
@@ -93,6 +109,13 @@ export default function WorkspacePage() {
       setResourceView({ assetId: null });
     }
   }, [activeSidebar, activeTab]);
+
+  // Stage 4f: same auto-clear for the Maintenance faultId intent.
+  useEffect(() => {
+    if (activeSidebar !== "Maintenance") {
+      setMaintenanceView({ faultId: null });
+    }
+  }, [activeSidebar]);
 
   // Stage 4e.8: Stores Officer + super_admin get a "Supply Requests"
   // tab inside Resource Management as their primary surface. Other
@@ -178,9 +201,15 @@ export default function WorkspacePage() {
           )}
 
           {/* MAINTENANCE — Stage 4c scaffold; sub-tabs owned by the
-              Maintenance component itself, not the page's activeTab. */}
+              Maintenance component itself, not the page's activeTab.
+              Stage 4f: initialFaultId deep-links from AssetDetailPanel
+              "Resolved from fault: X" entries. */}
           {activeSidebar === "Maintenance" && (
-            <Maintenance currentUser={currentUser} navigate={navigate} />
+            <Maintenance
+              currentUser={currentUser}
+              navigate={navigate}
+              initialFaultId={maintenanceView.faultId}
+            />
           )}
 
           {/* RESOURCE MANAGEMENT TABS */}
@@ -205,6 +234,7 @@ export default function WorkspacePage() {
             <CampusResource
               userRole={userRole}
               initialAssetId={resourceView.assetId}
+              navigate={navigate}
             />
           )}
 

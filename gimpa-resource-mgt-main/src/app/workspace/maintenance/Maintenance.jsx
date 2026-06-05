@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import MaintenanceDashboard from "./MaintenanceDashboard";
 import FaultsList from "./FaultsList";
@@ -11,11 +11,21 @@ import "@/app/styles/workspace/maintenance.css";
 
 const TABS = ["Dashboard", "Faults", "Supply Requests", "Maintenance Log"];
 
-export default function Maintenance({ currentUser, navigate }) {
+export default function Maintenance({ currentUser, navigate, initialFaultId }) {
 
   // Internal sub-tab state — does NOT use the page-level activeTab,
   // which is dedicated to Resource Management / Admin Dashboard.
   const [activeTab, setActiveTab] = useState("Dashboard");
+
+  // Stage 4f: when the parent passes a fault-id deep-link, force the
+  // Faults sub-tab so the user lands directly on the selected fault
+  // instead of the dashboard. Re-runs on every new id so a second
+  // navigation also lands correctly.
+  useEffect(() => {
+    if (initialFaultId) {
+      setActiveTab("Faults");
+    }
+  }, [initialFaultId]);
 
   return (
 
@@ -39,7 +49,9 @@ export default function Maintenance({ currentUser, navigate }) {
         <MaintenanceDashboard currentUser={currentUser} />
       )}
 
-      {activeTab === "Faults" && <FaultsList navigate={navigate} />}
+      {activeTab === "Faults" && (
+        <FaultsList navigate={navigate} initialFaultId={initialFaultId} />
+      )}
 
       {activeTab === "Supply Requests" && (
         <SupplyRequestsList navigate={navigate} />

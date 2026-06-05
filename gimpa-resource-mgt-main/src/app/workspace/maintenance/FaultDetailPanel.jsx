@@ -14,7 +14,7 @@ import {
 
 import app from "@/firebase/config";
 
-import { relativeTime, formatDate } from "@/app/lib/resourceMeta";
+import { relativeTime, formatDate, CONDITIONS } from "@/app/lib/resourceMeta";
 import { MAINTENANCE_ADMINS, MAINTENANCE_ROLES } from "@/app/lib/roles";
 
 import { updateFaultStatus } from "./services/updateFaultStatus";
@@ -597,6 +597,7 @@ export default function FaultDetailPanel({
         <ActionConfirmModal
           action={pendingAction}
           faultId={selectedFault.id}
+          severity={selectedFault.severity}
           currentUser={currentUser}
           onClose={() => setPendingAction(null)}
         />
@@ -644,16 +645,36 @@ export default function FaultDetailPanel({
 // notes-required flag based on the action config. Submits via
 // updateFaultStatus and lets onSnapshot in the parent re-render the
 // new status.
+//
+// Stage 4f: when the action transitions to "resolved", the resolver
+// must also pick the asset's new condition. The dropdown defaults to
+// a suggestion derived from severity — cosmetic/minor → good, major →
+// fair, critical → poor — but the resolver can override.
 // ---------------------------------------------------------------
 
-function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
+const CONDITION_BY_SEVERITY = {
+  cosmetic: "good",
+  minor:    "good",
+  major:    "fair",
+  critical: "poor"
+};
+
+function ActionConfirmModal({ action, faultId, severity, currentUser, onClose }) {
+
+  const isResolveAction = action.newStatus === "resolved";
 
   const [notes, setNotes] = useState("");
+  const [newCondition, setNewCondition] = useState(
+    () => CONDITION_BY_SEVERITY[severity] || "good"
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   const trimmed = notes.trim();
   const notesValid = action.notesRequired ? trimmed.length > 0 : true;
+  const conditionValid = isResolveAction
+    ? CONDITIONS.some((c) => c.value === newCondition)
+    : true;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -661,6 +682,10 @@ function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
     if (submitting) return;
     if (!notesValid) {
       setError(`${action.notesLabel} is required.`);
+      return;
+    }
+    if (isResolveAction && !conditionValid) {
+      setError("Pick the asset's condition after resolution.");
       return;
     }
 
@@ -672,6 +697,7 @@ function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
         faultId,
         newStatus: action.newStatus,
         notes: trimmed,
+        newCondition: isResolveAction ? newCondition : undefined,
         currentUser
       });
       onClose();
@@ -683,7 +709,13 @@ function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
           ? `${action.notesLabel} is required.`
           : code === "NOTES_TOO_LONG"
             ? "Notes are too long (max 2000 characters)."
-            : "Could not update the fault. Please try again."
+            : code === "CONDITION_REQUIRED"
+              ? "Pick the asset's condition after resolution."
+              : code === "CONDITION_INVALID"
+                ? "That condition isn't recognised — pick one from the list."
+                : code === "RESOURCE_NOT_FOUND"
+                  ? "The asset for this fault no longer exists; cannot update its condition."
+                  : "Could not update the fault. Please try again."
       );
     } finally {
       setSubmitting(false);
@@ -732,6 +764,33 @@ function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
             />
           </div>
 
+          {/* Stage 4f: resolve-only — the asset's new condition. The
+              dropdown pre-selects a severity-based suggestion (visible
+              on open, not a placeholder), and writing the resolution
+              flips the asset's condition + appends a conditionHistory
+              entry in the same atomic batch. */}
+          {isResolveAction && (
+            <div className="fault-field">
+              <label>
+                New condition after resolution
+                <span style={{ color: "#b91c1c" }}> *</span>
+              </label>
+              <select
+                value={newCondition}
+                onChange={(e) => setNewCondition(e.target.value)}
+                disabled={submitting}
+              >
+                {CONDITIONS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <p className="fault-field-hint">
+                This will update the asset's condition and add to its
+                condition history.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="fault-error-banner" role="alert">
               {error}
@@ -750,7 +809,7 @@ function ActionConfirmModal({ action, faultId, currentUser, onClose }) {
             <button
               type="submit"
               className={`fault-submit-btn fault-submit-${action.variant}`}
-              disabled={submitting || !notesValid}
+              disabled={submitting || !notesValid || !conditionValid}
             >
               {submitting ? "Saving…" : action.submitLabel}
             </button>
