@@ -198,6 +198,349 @@
   transform: translateY(-2px);
 }
 
+/* Stage 4h: Transfer Asset — same outlined treatment as the Report
+   Fault button so the action column reads as a consistent secondary
+   group sitting beneath the primary Book CTA. */
+.asset-detail-transfer-btn {
+  width: 100%;
+  margin-bottom: 18px;
+
+  background: #ffffff;
+  color: #003366;
+
+  border: 2px solid #003366;
+  border-radius: 12px;
+
+  padding: 10px 16px;
+
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.asset-detail-transfer-btn:hover {
+  background: #003366;
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+/* Transfer-history rows — three stacked lines (actor, optional
+   custodian delta, optional location delta) followed by the reason
+   in a muted card. Sits inside the existing .history-section
+   chrome. */
+.transfer-history-item .history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transfer-history-meta {
+  color: #1e293b;
+  font-size: 0.88rem;
+}
+
+.transfer-history-role {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.transfer-history-delta {
+  color: #334155;
+  font-size: 0.84rem;
+}
+
+.transfer-history-old {
+  color: #64748b;
+}
+
+.transfer-history-new {
+  color: #003366;
+  font-weight: 700;
+}
+
+.transfer-history-reason {
+  margin-top: 6px;
+  padding: 8px 10px;
+
+  background: #f8fafc;
+  border-left: 3px solid #cbd5e1;
+  border-radius: 4px;
+
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+/* ---------------------------------------------------------------
+   Stage 4h — TransferAssetModal
+--------------------------------------------------------------- */
+
+.transfer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  background: rgba(15, 23, 42, 0.55);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+}
+
+.transfer-modal {
+  width: 100%;
+  max-width: 600px;
+  max-height: calc(100vh - 40px);
+
+  background: #ffffff;
+  border-radius: 14px;
+
+  overflow-y: auto;
+
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.transfer-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 20px 22px 8px 22px;
+}
+
+.transfer-modal-header h2 {
+  margin: 0 0 4px 0;
+  color: #003366;
+  font-size: 1.15rem;
+}
+
+.transfer-modal-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.transfer-modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+
+  font-size: 1.6rem;
+  color: #64748b;
+  line-height: 1;
+
+  padding: 0 4px;
+}
+
+.transfer-modal-close:hover {
+  color: #003366;
+}
+
+.transfer-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  padding: 12px 22px 22px 22px;
+}
+
+.transfer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transfer-section h3 {
+  margin: 0;
+  color: #003366;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.transfer-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transfer-current {
+  font-size: 0.82rem;
+  color: #475569;
+}
+
+.transfer-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transfer-field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #334155;
+
+  display: flex;
+  justify-content: space-between;
+}
+
+.transfer-field-counter {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.transfer-field input,
+.transfer-field select,
+.transfer-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: #1e293b;
+}
+
+.transfer-field textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.transfer-field input:focus,
+.transfer-field select:focus,
+.transfer-field textarea:focus {
+  outline: 2px solid #1e3a8a;
+  outline-offset: 1px;
+  border-color: #1e3a8a;
+}
+
+.transfer-location-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 520px) {
+  .transfer-location-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.transfer-reset-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+
+  color: #00509d;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.transfer-reset-link:hover {
+  color: #003366;
+  text-decoration: underline;
+}
+
+.transfer-hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.transfer-hint-warn {
+  color: #b45309;
+}
+
+.transfer-validation {
+  padding: 8px 10px;
+
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+
+  color: #92400e;
+  font-size: 0.82rem;
+}
+
+.transfer-validation-error {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.transfer-error {
+  padding: 10px 12px;
+
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+
+  color: #991b1b;
+  font-size: 0.85rem;
+}
+
+.transfer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.transfer-cancel-btn {
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.transfer-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.transfer-submit-btn {
+  background: linear-gradient(135deg, #003366, #00509d);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+
+  padding: 8px 18px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.transfer-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 51, 102, 0.18);
+}
+
+.transfer-submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ---------------------------------------------------------------
    Pills (lifecycle + condition + booking status)
 --------------------------------------------------------------- */

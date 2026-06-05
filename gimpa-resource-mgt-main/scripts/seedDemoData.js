@@ -241,7 +241,7 @@ const wipeResourcesCollection = async () => {
     // Stage 4a added three history subcollections. Admin SDK doesn't
     // cascade — delete each one before the parent resource, otherwise
     // a re-seed leaves orphaned audit entries from the prior run.
-    for (const sub of ["conditionHistory", "lifecycleHistory", "custodianHistory"]) {
+    for (const sub of ["conditionHistory", "lifecycleHistory", "custodianHistory", "transfers"]) {
       const subSnap = await docSnap.ref.collection(sub).get();
       if (subSnap.empty) continue;
       const batch = db.batch();
@@ -900,6 +900,158 @@ const seedResources = async (accountsByEmail, superAdminActor) => {
     }
   }
   return DEMO_RESOURCES.length;
+};
+
+// ---------------------------------------------------------------
+// 6b. Transfer seeding (Stage 4h).
+// ---------------------------------------------------------------
+//
+// Two sample transfers so the AssetDetailPanel's Transfer History
+// section has content on first load and reviewers can see the
+// closed loop between live resource state + immutable audit. Each
+// write is atomic (writeBatch: parent resource update + transfers
+// entry) and timestamps are backdated so the entries look like
+// genuine history rather than a fresh seed run.
+
+const DEMO_TRANSFERS = [
+  {
+    // Transfer 1: EQP-001 Projector A — custodian + location change.
+    // Updates the parent resource doc so live state matches the
+    // audit entry (Conference Room A → Conference Room B; Facility
+    // Officer → Maintenance).
+    resourceId: "EQP-001",
+    oldCustodianEmail: "demo.facility@gimpa.edu.gh",
+    newCustodianEmail: "demo.maintenance@gimpa.edu.gh",
+    oldLocation: {
+      campus: "Main Campus", building: "GIMPA Block A",
+      floor: "Floor 1", room: "Room 101"
+    },
+    newLocation: {
+      campus: "Main Campus", building: "GIMPA Block A",
+      floor: "Floor 1", room: "Room 102"
+    },
+    reason:
+      "Moved to Conference Room B for the quarterly executive " +
+      "presentations through the next month.",
+    transferredByEmail: "demo.secretariat@gimpa.edu.gh",
+    daysAgo: 14
+  },
+  {
+    // Transfer 2: TLS-001 Maintenance Tool Kit — location-only.
+    // Custodian stays demo.maintenance on both sides so
+    // custodianChanged is false. Demonstrates the
+    // locationChanged-only branch of the audit entry.
+    resourceId: "TLS-001",
+    oldCustodianEmail: "demo.maintenance@gimpa.edu.gh",
+    newCustodianEmail: "demo.maintenance@gimpa.edu.gh",
+    oldLocation: {
+      campus: "Main Campus", building: "Stores Block",
+      floor: "Ground", room: "Workshop"
+    },
+    newLocation: {
+      campus: "Main Campus", building: "IT Block",
+      floor: "Floor 1", room: "Lab 2"
+    },
+    reason:
+      "Relocated for the Computer Lab 2 black-screen investigation " +
+      "flagged in the maintenance log.",
+    transferredByEmail: "demo.maintadmin@gimpa.edu.gh",
+    daysAgo: 3
+  }
+];
+
+const seedTransfers = async (accountsByEmail) => {
+
+  let written = 0;
+
+  for (const t of DEMO_TRANSFERS) {
+
+    const transferredByAccount = accountsByEmail[t.transferredByEmail];
+    if (!transferredByAccount) {
+      console.warn(
+        `  ! skipping transfer for ${t.resourceId}: ` +
+        `actor ${t.transferredByEmail} not in seeded accounts`
+      );
+      continue;
+    }
+    const actor = {
+      uid: transferredByAccount.uid,
+      name: transferredByAccount.fullName,
+      role: transferredByAccount.userDoc.role
+    };
+
+    const oldCustodian = t.oldCustodianEmail
+      ? (() => {
+          const acc = accountsByEmail[t.oldCustodianEmail];
+          return acc
+            ? { uid: acc.uid, name: acc.fullName }
+            : null;
+        })()
+      : null;
+    const newCustodian = t.newCustodianEmail
+      ? (() => {
+          const acc = accountsByEmail[t.newCustodianEmail];
+          return acc
+            ? { uid: acc.uid, name: acc.fullName }
+            : null;
+        })()
+      : null;
+
+    const custodianChanged =
+      (oldCustodian?.uid || null) !== (newCustodian?.uid || null);
+    const locationChanged = !(
+      (t.oldLocation?.campus   || "") === (t.newLocation?.campus   || "")
+      && (t.oldLocation?.building || "") === (t.newLocation?.building || "")
+      && (t.oldLocation?.floor    || "") === (t.newLocation?.floor    || "")
+      && (t.oldLocation?.room     || "") === (t.newLocation?.room     || "")
+    );
+
+    if (!custodianChanged && !locationChanged) {
+      console.warn(
+        `  ! skipping transfer for ${t.resourceId}: ` +
+        `neither custodian nor location changed`
+      );
+      continue;
+    }
+
+    const transferredAt = admin.firestore.Timestamp.fromMillis(
+      Date.now() - t.daysAgo * 24 * 60 * 60 * 1000
+    );
+
+    const resourceRef = db.collection("resources").doc(t.resourceId);
+    const transferRef = resourceRef.collection("transfers").doc();
+
+    const resourcePatch = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    if (custodianChanged) {
+      resourcePatch.custodianId = newCustodian?.uid || null;
+      resourcePatch.custodianName = newCustodian?.name || null;
+      resourcePatch.custodianAssignedAt = transferredAt;
+    }
+    if (locationChanged) {
+      resourcePatch.location = t.newLocation;
+    }
+
+    const batch = db.batch();
+    batch.update(resourceRef, resourcePatch);
+    batch.set(transferRef, {
+      transferredAt,
+      oldCustodian,
+      newCustodian,
+      custodianChanged,
+      oldLocation: t.oldLocation,
+      newLocation: t.newLocation,
+      locationChanged,
+      reason: t.reason,
+      transferredBy: actor
+    });
+    await batch.commit();
+
+    written++;
+  }
+
+  return written;
 };
 
 // ---------------------------------------------------------------
@@ -1840,6 +1992,10 @@ function adminNow() {
   const resourceCount = await seedResources(accountsByEmail, superAdminActor);
   console.log(`Seeded ${resourceCount} resources.`);
 
+  console.log("\nSeeding transfers...");
+  const transferCount = await seedTransfers(accountsByEmail);
+  console.log(`Seeded ${transferCount} transfers.`);
+
   console.log("\nSeeding bookings...");
   const bookingCount = await seedBookings(accountsByEmail);
   console.log(`Seeded ${bookingCount} bookings (including 1 with chat thread).`);
@@ -1857,6 +2013,7 @@ function adminNow() {
   printSummary({
     accounts: seededAccounts,
     resourceCount,
+    transferCount,
     bookingCount,
     faultCount,
     supplyRequestCount,
@@ -1870,7 +2027,7 @@ function adminNow() {
   process.exit(1);
 });
 
-function printSummary({ accounts, resourceCount, bookingCount, faultCount, supplyRequestCount, skipAuth }) {
+function printSummary({ accounts, resourceCount, transferCount, bookingCount, faultCount, supplyRequestCount, skipAuth }) {
   console.log("\n=====================================");
   console.log("Demo data ready.");
   console.log("=====================================\n");
@@ -1884,6 +2041,9 @@ function printSummary({ accounts, resourceCount, bookingCount, faultCount, suppl
   }
 
   console.log(`Resources seeded:  ${resourceCount}`);
+  if (transferCount != null) {
+    console.log(`Transfers seeded:  ${transferCount}`);
+  }
   console.log(`Bookings seeded:   ${bookingCount}`);
   if (faultCount != null) {
     console.log(`Faults seeded:     ${faultCount}`);

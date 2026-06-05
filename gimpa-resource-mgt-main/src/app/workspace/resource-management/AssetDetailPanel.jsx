@@ -32,7 +32,17 @@ import {
 import { canBookResource } from "./services/permissions";
 import { responsibleRoleForCategory } from "@/app/lib/categoryResponsibility";
 
+import { PLATFORM_ADMINS, RESOURCE_MANAGERS } from "@/app/lib/roles";
+
 import BookingForm from "./BookingForm";
+
+// Stage 4h: lazy — TransferAssetModal pulls the staff picker + writeBatch
+// service when first opened. Keeps the AssetDetailPanel chunk lean for
+// viewers who never trigger a transfer.
+const TransferAssetModal = dynamic(
+  () => import("./TransferAssetModal"),
+  { ssr: false }
+);
 
 // Lazy-load the fault-report modal — pulls in the firebase/storage
 // SDK + the rest of the maintenance subtree, which would bloat the
@@ -68,9 +78,11 @@ export default function AssetDetailPanel({
   const [conditionHistory, setConditionHistory] = useState([]);
   const [lifecycleHistory, setLifecycleHistory] = useState([]);
   const [custodianHistory, setCustodianHistory] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showFaultModal, setShowFaultModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
   // Re-render every 30s so the relative-time strings (conditionHistory
@@ -91,6 +103,7 @@ export default function AssetDetailPanel({
       setConditionHistory([]);
       setLifecycleHistory([]);
       setCustodianHistory([]);
+      setTransfers([]);
       setBookings([]);
       return;
     }
@@ -131,6 +144,20 @@ export default function AssetDetailPanel({
       (err) => console.error("custodianHistory listener:", err)
     ));
 
+    // Stage 4h: transfers — first-class events that flip custodian
+    // and/or location with reason + actor. Distinct from the
+    // initial-registration custodianHistory entries above.
+    unsubs.push(onSnapshot(
+      query(
+        collection(db, "resources", id, "transfers"),
+        orderBy("transferredAt", "desc")
+      ),
+      (snap) => setTransfers(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      ),
+      (err) => console.error("transfers listener:", err)
+    ));
+
     unsubs.push(onSnapshot(
       query(
         collection(db, "bookings"),
@@ -160,6 +187,24 @@ export default function AssetDetailPanel({
   const status = selectedAsset.lifecycleStatus || "active";
   const condition = selectedAsset.condition || "good";
   const warranty = formatWarrantyStatus(selectedAsset.warrantyExpiry, now);
+
+  // Stage 4h: gate the Transfer button. PLATFORM_ADMINS can transfer
+  // anything; RESOURCE_MANAGERS only within their responsibleRole
+  // slice. Separation of duties applies to everyone: the current
+  // custodian cannot transfer the asset they hold (even admins).
+  const isCurrentCustodian =
+    !!selectedAsset.custodianId
+    && selectedAsset.custodianId === currentUser?.uid;
+  const canTransferAsset =
+    !!currentUserRole
+    && !isCurrentCustodian
+    && (
+      PLATFORM_ADMINS.includes(currentUserRole)
+      || (
+        RESOURCE_MANAGERS.includes(currentUserRole)
+        && selectedAsset.responsibleRole === currentUserRole
+      )
+    );
 
   return (
     <>
@@ -212,6 +257,18 @@ export default function AssetDetailPanel({
             onClick={() => setShowFaultModal(true)}
           >
             Report Fault on this asset
+          </button>
+        )}
+
+        {/* Stage 4h: Transfer Asset — gated by role + responsibleRole +
+            separation of duties (current custodian excluded). */}
+        {canTransferAsset && (
+          <button
+            type="button"
+            className="asset-detail-transfer-btn"
+            onClick={() => setShowTransferModal(true)}
+          >
+            Transfer Asset
           </button>
         )}
 
@@ -351,6 +408,16 @@ export default function AssetDetailPanel({
             )}
           />
 
+          {/* Stage 4h: Transfer History — first-class transfer events
+              with reason + actor + custodian/location deltas. Lives
+              alongside the registration-side custodianHistory above
+              so reviewers can see initial setup vs subsequent moves
+              without conflating them. */}
+          <TransferHistorySection
+            transfers={transfers}
+            now={now}
+          />
+
           <HistorySection
             title="Bookings on this asset"
             entries={bookings}
@@ -388,7 +455,98 @@ export default function AssetDetailPanel({
           closeModal={() => setShowFaultModal(false)}
         />
       )}
+
+      {showTransferModal && (
+        <TransferAssetModal
+          asset={selectedAsset}
+          currentUser={currentUser}
+          onClose={() => setShowTransferModal(false)}
+          onTransferred={() => {
+            // The resource onSnapshot in CampusResource re-fetches
+            // bulk; here the transfers listener above will pick up the
+            // new entry within the same tick. No extra wiring needed.
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// Stage 4h: dedicated renderer for Transfer History entries. The
+// shared HistorySection helper assumes a one-line summary; transfers
+// carry conditional custodian/location deltas + a free-form reason
+// that benefits from its own layout.
+function TransferHistorySection({ transfers, now }) {
+
+  const summarizeLocation = (loc) => {
+    if (!loc) return "Unassigned";
+    const parts = [loc.campus, loc.building, loc.floor, loc.room]
+      .map((p) => (p || "").trim())
+      .filter(Boolean);
+    return parts.length ? parts.join(" › ") : "Unassigned";
+  };
+
+  return (
+    <div className="history-section">
+      <h3>Transfer History</h3>
+      {transfers.length === 0 ? (
+        <p className="history-empty">No transfers yet.</p>
+      ) : (
+        <ul className="history-list">
+          {transfers.map((t) => (
+            <li key={t.id} className="history-item transfer-history-item">
+              <div className="history-content">
+                <div className="transfer-history-meta">
+                  <strong>
+                    {t.transferredBy?.name || "Unknown"}
+                  </strong>
+                  {t.transferredBy?.role && (
+                    <span className="transfer-history-role">
+                      {" · "}{t.transferredBy.role}
+                    </span>
+                  )}
+                </div>
+
+                {t.custodianChanged && (
+                  <div className="transfer-history-delta">
+                    Custodian:{" "}
+                    <span className="transfer-history-old">
+                      {t.oldCustodian?.name || "Unassigned"}
+                    </span>
+                    {" → "}
+                    <span className="transfer-history-new">
+                      {t.newCustodian?.name || "Unassigned"}
+                    </span>
+                  </div>
+                )}
+
+                {t.locationChanged && (
+                  <div className="transfer-history-delta">
+                    Location:{" "}
+                    <span className="transfer-history-old">
+                      {summarizeLocation(t.oldLocation)}
+                    </span>
+                    {" → "}
+                    <span className="transfer-history-new">
+                      {summarizeLocation(t.newLocation)}
+                    </span>
+                  </div>
+                )}
+
+                {t.reason && (
+                  <div className="transfer-history-reason">
+                    {t.reason}
+                  </div>
+                )}
+              </div>
+              <div className="history-time">
+                {t.transferredAt ? relativeTime(t.transferredAt, now) : ""}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

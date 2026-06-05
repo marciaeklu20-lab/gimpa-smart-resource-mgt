@@ -154,6 +154,10 @@ service cloud.firestore {
         isAdmin()
         || isOperationalApprover()
         || isMaintenanceStaff()
+        // Stage 4h: resource managers need the staff list to drive the
+        // TransferAssetModal custodian picker. Logistics Officer is
+        // the only RM not already covered by the lists above.
+        || isResourceManager()
       );
 
       // Self-create at signup. We can't read the user doc here (it
@@ -292,6 +296,57 @@ service cloud.firestore {
         || isOperationalApprover()
         || isResourceManager()
       );
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // resources/{assetCode}/transfers/{transferId}  (Stage 4h)
+    //
+    // First-class transfer events — custodian and/or location moves
+    // with reason + actor. Distinct from custodianHistory above, which
+    // only captures initial-registration provenance from seedResources.
+    //
+    // Read:    any approved user (matches parent /resources read).
+    // Create:  platform admin OR responsible resource manager
+    //          (whose role matches the parent resource's
+    //          responsibleRole). Payload validations:
+    //          - reason is non-empty string with 10 ≤ len ≤ 500
+    //          - transferredBy.uid matches auth uid
+    //          - at least one of {custodianChanged, locationChanged} is true
+    // Update/
+    // Delete:  denied — transfers are immutable audit entries.
+    //
+    // Separation-of-duties (current custodian cannot transfer their
+    // own asset) is enforced client-side in transferAsset.js — the
+    // rule layer would need an extra get() and the SoD check is also
+    // visible in the UI (button hidden), so the duplication isn't
+    // worth the extra read here.
+    // ---------------------------------------------------------------
+    match /resources/{assetCode}/transfers/{transferId} {
+
+      function parentResourceForTransfer() {
+        return get(/databases/$(database)/documents/resources/$(assetCode)).data;
+      }
+
+      allow read: if isApproved();
+
+      allow create: if isApproved()
+        && (
+          isAdmin()
+          || (
+            isResourceManager()
+            && parentResourceForTransfer().responsibleRole == myRole()
+          )
+        )
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() >= 10
+        && request.resource.data.reason.size() <= 500
+        && request.resource.data.transferredBy.uid == request.auth.uid
+        && (
+          request.resource.data.custodianChanged == true
+          || request.resource.data.locationChanged == true
+        );
+
       allow update, delete: if false;
     }
 
