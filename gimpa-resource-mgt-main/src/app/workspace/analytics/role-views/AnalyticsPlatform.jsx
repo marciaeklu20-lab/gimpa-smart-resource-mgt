@@ -47,6 +47,8 @@ import {
 } from "../services/chartData";
 import { exportToCsv } from "../exportCsv";
 import { exportToPdf } from "../exportPdf";
+import InsightsPanel from "../insights/InsightsPanel";
+import { insightsExportSection } from "../insights/insightRules";
 
 const db = getFirestore(app);
 
@@ -59,7 +61,7 @@ const STATUS_COLORS = {
   cancelled: "#94a3b8"
 };
 
-export default function AnalyticsPlatform({ currentUser }) {
+export default function AnalyticsPlatform({ currentUser, navigate }) {
 
   const [period, setPeriod] = useState(() => computePresetRange("30"));
 
@@ -165,9 +167,21 @@ export default function AnalyticsPlatform({ currentUser }) {
   const departmentData = bookingsByDepartment(bookingsCurr);
 
   // -----------------------------------------------------------------
+  // Insights (Stage 4q) — bundle the raw data this view subscribes to
+  // and let the rule engine derive findings. NO new Firestore reads.
+  // -----------------------------------------------------------------
+  const insightData = {
+    bookings:       bookingsCurr,
+    faults:         faultsCurr,
+    supplyRequests: supplyCurr,
+    resources
+  };
+
+  // -----------------------------------------------------------------
   // Exports
   // -----------------------------------------------------------------
   const buildSections = () => ([
+    insightsExportSection(insightData, period, currentUser),
     {
       title: "Headline KPIs",
       columns: ["Metric", "Current", "Prior", "Δ"],
@@ -249,6 +263,13 @@ export default function AnalyticsPlatform({ currentUser }) {
       </div>
 
       <PeriodSelector value={period} onChange={setPeriod} />
+
+      <InsightsPanel
+        data={insightData}
+        period={period}
+        currentUser={currentUser}
+        navigate={navigate}
+      />
 
       <div className="analytics-kpi-row">
         <KpiCard

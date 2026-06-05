@@ -38,7 +38,7 @@ const BOOKER_ROLES = [
   "student"
 ];
 
-export default function Analytics({ currentUser }) {
+export default function Analytics({ currentUser, navigate }) {
 
   const role = currentUser?.role;
 
@@ -51,19 +51,19 @@ export default function Analytics({ currentUser }) {
   }
 
   if (PLATFORM_ADMINS.includes(role) || GLOBAL_APPROVERS.includes(role)) {
-    return <AnalyticsPlatform currentUser={currentUser} />;
+    return <AnalyticsPlatform currentUser={currentUser} navigate={navigate} />;
   }
 
   if (RESOURCE_MANAGERS.includes(role)) {
-    return <AnalyticsResourceManager currentUser={currentUser} />;
+    return <AnalyticsResourceManager currentUser={currentUser} navigate={navigate} />;
   }
 
   if (MAINTENANCE_ROLES.includes(role)) {
-    return <AnalyticsMaintenance currentUser={currentUser} />;
+    return <AnalyticsMaintenance currentUser={currentUser} navigate={navigate} />;
   }
 
   if (BOOKER_ROLES.includes(role)) {
-    return <AnalyticsBooker currentUser={currentUser} />;
+    return <AnalyticsBooker currentUser={currentUser} navigate={navigate} />;
   }
 
   return (

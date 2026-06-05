@@ -285,7 +285,7 @@ export default function WorkspacePage() {
           {/* ANALYTICS — Stage 4j: role-routing wrapper handles per-role
               views internally; no top-level admin gate any more. */}
           {activeSidebar === "Analytics" && (
-            <Analytics currentUser={currentUser} />
+            <Analytics currentUser={currentUser} navigate={navigate} />
           )}
 
         </div>

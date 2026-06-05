@@ -41,6 +41,8 @@ import {
   formatPct
 } from "../services/chartData";
 import { exportToCsv } from "../exportCsv";
+import InsightsPanel from "../insights/InsightsPanel";
+import { insightsExportSection } from "../insights/insightRules";
 
 const db = getFirestore(app);
 
@@ -50,7 +52,7 @@ const STATUS_COLORS = {
   Rejected: "#ef4444"
 };
 
-export default function AnalyticsBooker({ currentUser }) {
+export default function AnalyticsBooker({ currentUser, navigate }) {
 
   const uid = currentUser?.uid;
 
@@ -109,6 +111,16 @@ export default function AnalyticsBooker({ currentUser }) {
 
   const { bookingsCurr, bookingsPrev, faultsCurr, faultsPrev } = slices;
 
+  // Stage 4q — Booker view feeds its own slice into the rule engine.
+  // bookingVolumeChange is the primary rule that personalizes on
+  // requesterId; other rules return null for this role bucket.
+  const insightData = {
+    bookings: bookingsCurr,
+    faults:   faultsCurr,
+    supplyRequests: [],
+    resources: []
+  };
+
   // -----------------------------------------------------------------
   // KPIs
   // -----------------------------------------------------------------
@@ -137,6 +149,7 @@ export default function AnalyticsBooker({ currentUser }) {
   // Export
   // -----------------------------------------------------------------
   const buildSections = () => ([
+    insightsExportSection(insightData, period, currentUser),
     {
       title: "My activity KPIs",
       columns: ["Metric", "Current", "Prior"],
@@ -191,6 +204,13 @@ export default function AnalyticsBooker({ currentUser }) {
       </div>
 
       <PeriodSelector value={period} onChange={setPeriod} />
+
+      <InsightsPanel
+        data={insightData}
+        period={period}
+        currentUser={currentUser}
+        navigate={navigate}
+      />
 
       <div className="analytics-kpi-row">
         <KpiCard

@@ -40,6 +40,8 @@ import {
   formatDaysOrHours
 } from "../services/chartData";
 import { exportToCsv } from "../exportCsv";
+import InsightsPanel from "../insights/InsightsPanel";
+import { insightsExportSection } from "../insights/insightRules";
 
 const db = getFirestore(app);
 
@@ -90,7 +92,7 @@ const resolutionTimeTrend = (faults, period) => {
     }));
 };
 
-export default function AnalyticsMaintenance({ currentUser }) {
+export default function AnalyticsMaintenance({ currentUser, navigate }) {
 
   const [period, setPeriod] = useState(() => computePresetRange("30"));
 
@@ -140,6 +142,17 @@ export default function AnalyticsMaintenance({ currentUser }) {
 
   const { faultsCurr, faultsPrev, supplyCurr, supplyPrev } = slices;
 
+  // Stage 4q — Maintenance view feeds its slice into the rule engine.
+  // Resources aren't subscribed in this view (faults already carry
+  // resourceName), so we pass an empty array and let rules that need
+  // resources gracefully return null.
+  const insightData = {
+    bookings:       [],
+    faults:         faultsCurr,
+    supplyRequests: supplyCurr,
+    resources:      []
+  };
+
   // -----------------------------------------------------------------
   // KPIs
   // -----------------------------------------------------------------
@@ -172,6 +185,7 @@ export default function AnalyticsMaintenance({ currentUser }) {
   // Export
   // -----------------------------------------------------------------
   const buildSections = () => ([
+    insightsExportSection(insightData, period, currentUser),
     {
       title: "Maintenance KPIs",
       columns: ["Metric", "Current", "Prior"],
@@ -227,6 +241,13 @@ export default function AnalyticsMaintenance({ currentUser }) {
       </div>
 
       <PeriodSelector value={period} onChange={setPeriod} />
+
+      <InsightsPanel
+        data={insightData}
+        period={period}
+        currentUser={currentUser}
+        navigate={navigate}
+      />
 
       <div className="analytics-kpi-row">
         <KpiCard

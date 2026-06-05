@@ -42,6 +42,8 @@ import {
   formatDaysOrHours
 } from "../services/chartData";
 import { exportToCsv } from "../exportCsv";
+import InsightsPanel from "../insights/InsightsPanel";
+import { insightsExportSection } from "../insights/insightRules";
 import { categoriesForRole } from "@/app/lib/categoryResponsibility";
 
 const db = getFirestore(app);
@@ -53,7 +55,7 @@ const SEVERITY_COLORS = {
   cosmetic: "#facc15"
 };
 
-export default function AnalyticsResourceManager({ currentUser }) {
+export default function AnalyticsResourceManager({ currentUser, navigate }) {
 
   const role = currentUser?.role;
   const myCategories = useMemo(() => categoriesForRole(role), [role]);
@@ -166,6 +168,17 @@ export default function AnalyticsResourceManager({ currentUser }) {
 
   const { bookingsCurr, bookingsPrev, faultsCurr, faultsPrev, supplyCurr, supplyPrev } = slices;
 
+  // Stage 4q — pass the full (period-filtered) RM slice into the rule
+  // engine. `resources` is the unfiltered collection so rules that
+  // need the responsibility partitioning can do it themselves; my-
+  // scoped rules use that to derive the RM's slice.
+  const insightData = {
+    bookings:       bookingsCurr,
+    faults:         faultsCurr,
+    supplyRequests: supplyCurr,
+    resources
+  };
+
   // -----------------------------------------------------------------
   // KPIs
   // -----------------------------------------------------------------
@@ -199,6 +212,7 @@ export default function AnalyticsResourceManager({ currentUser }) {
   // -----------------------------------------------------------------
   const buildSections = () => {
     const sections = [
+      insightsExportSection(insightData, period, currentUser),
       {
         title: "My responsibility KPIs",
         columns: ["Metric", "Current", "Prior"],
@@ -270,6 +284,13 @@ export default function AnalyticsResourceManager({ currentUser }) {
       </div>
 
       <PeriodSelector value={period} onChange={setPeriod} />
+
+      <InsightsPanel
+        data={insightData}
+        period={period}
+        currentUser={currentUser}
+        navigate={navigate}
+      />
 
       <div className="analytics-kpi-row">
         <KpiCard

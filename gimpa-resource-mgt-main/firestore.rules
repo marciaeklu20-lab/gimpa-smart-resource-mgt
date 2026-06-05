@@ -405,6 +405,11 @@ service cloud.firestore {
             && myRole() in resource.data.approvalRoutedTo)
         || isAdmin()
         || isGlobalApprover()
+        // Stage 4j: institutional reporting (AnalyticsResourceManager)
+        // needs broad read so role-scoped collection listeners work.
+        // The view filters to "my responsibility" client-side; rules
+        // engine can't prove the array-contains query is safe.
+        || isResourceManager()
       );
 
       // Stage 4e.7: approve/reject now gates on approvalRoutedTo,
@@ -496,7 +501,11 @@ service cloud.firestore {
         return resource.data.reporterId == request.auth.uid
           || myRole() in resource.data.routedToRoles
           || isAdmin()
-          || isMaintenanceStaff();
+          || isMaintenanceStaff()
+          // Stage 4j: AnalyticsPlatform / AnalyticsResourceManager
+          // need broad read for cross-collection reporting.
+          || isGlobalApprover()
+          || isResourceManager();
       }
 
       // Mirrors the bookings chat-metadata pattern (see bookings rule
@@ -569,7 +578,10 @@ service cloud.firestore {
           || myRole() in parentFaultAssign().routedToRoles
           || isAdmin()
           || isMaintenanceAdmin()
-          || isMaintenanceStaff();
+          || isMaintenanceStaff()
+          // Stage 4j: mirror the parent /faults visibility broadening.
+          || isGlobalApprover()
+          || isResourceManager();
       }
 
       allow read: if isApproved() && canSeeParentFaultAssign();
@@ -607,7 +619,10 @@ service cloud.firestore {
         return parentFault().reporterId == request.auth.uid
           || myRole() in parentFault().routedToRoles
           || isAdmin()
-          || isMaintenanceStaff();
+          || isMaintenanceStaff()
+          // Stage 4j: mirror the parent /faults visibility broadening.
+          || isGlobalApprover()
+          || isResourceManager();
       }
 
       allow read: if isApproved() && canSeeParentFault();
@@ -649,7 +664,9 @@ service cloud.firestore {
           || myRole() in resource.data.routedToRoles
           || isAdmin()
           || isMaintenanceAdmin()
-          || isMaintenanceStaff();
+          || isMaintenanceStaff()
+          // Stage 4j: AnalyticsPlatform reporting needs broad read.
+          || isGlobalApprover();
       }
 
       allow read: if isApproved() && canSeeSupplyRequest();
@@ -704,7 +721,9 @@ service cloud.firestore {
           || myRole() in parentSupplyReq().routedToRoles
           || isAdmin()
           || isMaintenanceAdmin()
-          || isMaintenanceStaff();
+          || isMaintenanceStaff()
+          // Stage 4j: mirror the parent /supplyRequests visibility.
+          || isGlobalApprover();
       }
 
       allow read: if isApproved() && canSeeParentSupplyReq();
