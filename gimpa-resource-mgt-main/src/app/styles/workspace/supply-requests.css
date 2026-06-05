@@ -1,0 +1,212 @@
+/* Stage 4e.8 — supply-request styles. Layered on top of faults.css so
+   the master-detail / pill / modal scaffolding is reused. This file
+   only adds: per-status pill colours, the items tables, and the
+   in-modal "add row" / "remove row" controls. */
+
+@import "./faults.css";
+
+/* ---- Status pills ------------------------------------------------ */
+
+.fault-pill.supply-status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.fault-pill.supply-status-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.fault-pill.supply-status-denied {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.fault-pill.supply-status-fulfilled {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.fault-pill.supply-status-cancelled {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+/* ---- Detail-panel title block ----------------------------------- */
+
+.supply-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.supply-detail-title strong {
+  color: #003366;
+  font-size: 1.05rem;
+}
+
+.supply-detail-id {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Read-only items table inside the detail panel -------------- */
+
+.supply-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 6px;
+}
+
+.supply-items-table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.supply-items-table tbody td {
+  padding: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.supply-items-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---- Editable items table inside modals ------------------------- */
+
+.supply-items-edit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.supply-items-edit-table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.supply-items-edit-table tbody td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+
+.supply-items-edit-table select,
+.supply-items-edit-table input[type="text"],
+.supply-items-edit-table input[type="number"] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.supply-row-remove {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.supply-row-remove:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.supply-row-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.supply-add-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  border: 1px dashed #94a3b8;
+  border-radius: 4px;
+  color: #334155;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.supply-add-row-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.supply-add-row-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Linked-fault button --------------------------------------- */
+
+.supply-fault-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.supply-fault-link:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.supply-fault-link strong {
+  color: #003366;
+  font-size: 0.95rem;
+}
+
+.supply-fault-link span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* ---- Locked-fault tag in modal --------------------------------- */
+
+.supply-locked-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 10px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---- Modal widens slightly to fit the items table -------------- */
+
+.supply-request-modal {
+  max-width: 720px;
+}

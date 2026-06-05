@@ -440,6 +440,15 @@
   color: #ffffff;
 }
 
+/* Stage 4e.8: low-emphasis secondary used for "Request Supplies" in
+   the fault action row — sits next to the workflow buttons but
+   doesn't compete with them visually. */
+.fault-action-secondary {
+  background: #ffffff;
+  color: #003366;
+  border: 1px solid #cbd5e1;
+}
+
 .fault-detail-terminal {
   margin: 0;
   padding: 12px 14px;

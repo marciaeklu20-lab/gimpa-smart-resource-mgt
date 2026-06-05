@@ -47,6 +47,30 @@
         { "fieldPath": "status",     "order": "ASCENDING" },
         { "fieldPath": "resolvedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "supplyRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",    "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "supplyRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requesterId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "supplyRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "relatedFaultId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",      "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

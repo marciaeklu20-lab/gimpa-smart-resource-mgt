@@ -37,6 +37,14 @@ const AssignFaultModal = dynamic(
   { ssr: false }
 );
 
+// Stage 4e.8: also lazy. Brings in the supplyRequest service + the
+// resource catalogue fetch — no point in paying that cost unless the
+// user actually opens it.
+const SupplyRequestModal = dynamic(
+  () => import("./supplyRequest/SupplyRequestModal"),
+  { ssr: false }
+);
+
 const SEVERITY_LABEL = {
   cosmetic: "Cosmetic",
   minor:    "Minor",
@@ -137,6 +145,10 @@ export default function FaultDetailPanel({
   //     handled by AssignmentConfirmModal below
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [pendingAssignmentChange, setPendingAssignmentChange] = useState(null);
+
+  // Stage 4e.8: supply request launcher. Opens the SupplyRequestModal
+  // with this fault pre-linked.
+  const [showSupplyModal, setShowSupplyModal] = useState(false);
 
   // Tick the clock so relative-time strings stay current without a
   // re-fetch.
@@ -457,6 +469,17 @@ export default function FaultDetailPanel({
                     {a.label}
                   </button>
                 ))}
+                {/* Stage 4e.8: maintenance can pull supplies for any
+                    fault they own (or that an admin oversees). The
+                    button piggybacks on canAct so the gating matches
+                    the workflow buttons above. */}
+                <button
+                  type="button"
+                  className="fault-action-btn fault-action-secondary"
+                  onClick={() => setShowSupplyModal(true)}
+                >
+                  Request Supplies
+                </button>
               </div>
             )}
             {!showUnassignedHint && !canAct && isInMaintenanceDomain && assignedTo && (
@@ -594,6 +617,18 @@ export default function FaultDetailPanel({
           faultId={selectedFault.id}
           currentUser={currentUser}
           onClose={() => setPendingAssignmentChange(null)}
+        />
+      )}
+
+      {showSupplyModal && (
+        <SupplyRequestModal
+          lockedFault={{
+            id: selectedFault.id,
+            resourceId: selectedFault.resourceId,
+            resourceName: selectedFault.resourceName
+          }}
+          currentUser={currentUser}
+          closeModal={() => setShowSupplyModal(false)}
         />
       )}
 

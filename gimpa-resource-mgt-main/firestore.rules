@@ -562,6 +562,105 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------------
+    // supplyRequests/{requestId}  (Stage 4e.8)
+    //
+    // Maintenance staff/admin ask Stores for tools / consumables. Stores
+    // (and super_admin) decide; the requester can cancel their own
+    // pending request.
+    //
+    // Read:    requester, anyone in routedToRoles, admin, Maintenance
+    //          Admin, or Maintenance Staff. Same broad-visibility model
+    //          as faults so the maintenance domain can audit requests
+    //          across the team.
+    // Create:  maintenance domain (admin or staff) or platform admin.
+    //          requesterId must match auth uid; status pinned to
+    //          "pending"; reason must be non-empty <=1000; items must
+    //          be a non-empty list.
+    // Update:  TWO branches —
+    //   (a) Stores (in routedToRoles) or platform admin can transition
+    //       the workflow (approve/deny/fulfill).
+    //   (b) Requester can flip their OWN pending request to "cancelled".
+    // Delete:  admin only.
+    // ---------------------------------------------------------------
+    match /supplyRequests/{requestId} {
+
+      function canSeeSupplyRequest() {
+        return resource.data.requesterId == request.auth.uid
+          || myRole() in resource.data.routedToRoles
+          || isAdmin()
+          || isMaintenanceAdmin()
+          || isMaintenanceStaff();
+      }
+
+      allow read: if isApproved() && canSeeSupplyRequest();
+
+      allow create: if isApproved()
+        && request.resource.data.requesterId == request.auth.uid
+        && request.resource.data.status == "pending"
+        && (
+          isMaintenanceAdmin()
+          || isMaintenanceStaff()
+          || isAdmin()
+        )
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 1000
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0;
+
+      allow update: if isApproved() && (
+        isAdmin()
+        || (
+          myRole() == "Stores/Inventory Officer"
+          && myRole() in resource.data.routedToRoles
+        )
+        || (
+          resource.data.requesterId == request.auth.uid
+          && resource.data.status == "pending"
+          && request.resource.data.status == "cancelled"
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------
+    // supplyRequests/{requestId}/statusHistory/{entryId}  (Stage 4e.8)
+    //
+    // Append-only audit log mirroring the parent request's visibility.
+    // The requester writes the initial "Supply request submitted" entry
+    // alongside the create — covered by the changedBy.uid == auth.uid
+    // branch. Subsequent entries are written by Stores / admin /
+    // maintenance during the workflow.
+    // ---------------------------------------------------------------
+    match /supplyRequests/{requestId}/statusHistory/{entryId} {
+
+      function parentSupplyReq() {
+        return get(/databases/$(database)/documents/supplyRequests/$(requestId)).data;
+      }
+
+      function canSeeParentSupplyReq() {
+        return parentSupplyReq().requesterId == request.auth.uid
+          || myRole() in parentSupplyReq().routedToRoles
+          || isAdmin()
+          || isMaintenanceAdmin()
+          || isMaintenanceStaff();
+      }
+
+      allow read: if isApproved() && canSeeParentSupplyReq();
+
+      allow create: if isApproved() && (
+        isAdmin()
+        || isMaintenanceAdmin()
+        || isMaintenanceStaff()
+        || myRole() == "Stores/Inventory Officer"
+        || request.resource.data.changedBy.uid == request.auth.uid
+      );
+
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
     // faults/{faultId}/messages/{messageId}  (Stage 4e)
     //
     // Per-fault chat thread. Same visibility model as the parent fault:

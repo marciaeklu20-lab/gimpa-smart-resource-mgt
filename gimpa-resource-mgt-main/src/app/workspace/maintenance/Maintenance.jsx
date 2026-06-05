@@ -5,10 +5,11 @@ import { useState } from "react";
 import MaintenanceDashboard from "./MaintenanceDashboard";
 import FaultsList from "./FaultsList";
 import MaintenanceLog from "./MaintenanceLog";
+import SupplyRequestsList from "./supplyRequest/SupplyRequestsList";
 
 import "@/app/styles/workspace/maintenance.css";
 
-const TABS = ["Dashboard", "Faults", "Maintenance Log"];
+const TABS = ["Dashboard", "Faults", "Supply Requests", "Maintenance Log"];
 
 export default function Maintenance({ currentUser, navigate }) {
 
@@ -39,6 +40,10 @@ export default function Maintenance({ currentUser, navigate }) {
       )}
 
       {activeTab === "Faults" && <FaultsList navigate={navigate} />}
+
+      {activeTab === "Supply Requests" && (
+        <SupplyRequestsList navigate={navigate} />
+      )}
 
       {activeTab === "Maintenance Log" && <MaintenanceLog />}
 

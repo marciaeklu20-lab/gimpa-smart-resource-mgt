@@ -258,6 +258,23 @@ const wipeResourcesCollection = async () => {
 // before the parent. Storage objects (fault images) are not deleted
 // here — we'd need to enumerate the bucket, which is out of scope for
 // the seed reset. Acceptable; orphaned blobs are cheap.
+// Stage 4e.8: supplyRequests wipe. Mirrors wipeFaultsCollection —
+// each request carries a statusHistory subcollection we wipe first,
+// then the parent doc.
+const wipeSupplyRequestsCollection = async () => {
+  const snap = await db.collection("supplyRequests").get();
+  let count = 0;
+  for (const docSnap of snap.docs) {
+    const subs = await docSnap.ref.collection("statusHistory").get();
+    for (const sub of subs.docs) {
+      await sub.ref.delete();
+    }
+    await docSnap.ref.delete();
+    count++;
+  }
+  return count;
+};
+
 const wipeFaultsCollection = async () => {
   const snap = await db.collection("faults").get();
   if (snap.empty) return 0;
@@ -389,6 +406,20 @@ const DEMO_ACCOUNTS = [
       role: "Logistics Officer",
       department: "Transport & Logistics",
       staffID: "STF-DEMO-007",
+      approved: true,
+      needsApproval: false
+    }
+  },
+  // Stage 4e.8: Stores/Inventory Officer — reviews supply requests
+  // from maintenance staff. Owns the Office Supplies, Tools, and Other
+  // resource slices via the Stage 4e.7 category responsibility map.
+  {
+    email: "demo.stores@gimpa.edu.gh",
+    fullName: "Demo Stores Officer",
+    userDoc: {
+      role: "Stores/Inventory Officer",
+      department: "Stores & Inventory",
+      staffID: "STF-DEMO-008",
       approved: true,
       needsApproval: false
     }
@@ -1231,6 +1262,9 @@ const DEMO_FAULTS = [
 const seedFaults = async (accountsByEmail) => {
 
   let written = 0;
+  // Stage 4e.8: keyed by resourceId so seedSupplyRequests can resolve
+  // a "linked fault on EQP-001" reference back to the live fault doc.
+  const faultIdByResource = {};
 
   // Stage 4e.5: maintenance admin who is recorded as the actor on
   // every pre-seeded assignment (changedBy + assignedBy). If the demo
@@ -1276,6 +1310,7 @@ const seedFaults = async (accountsByEmail) => {
       : null;
 
     const faultRef = db.collection("faults").doc();
+    faultIdByResource[f.resourceId] = faultRef.id;
 
     const faultData = {
       resourceId: f.resourceId,
@@ -1407,8 +1442,241 @@ const seedFaults = async (accountsByEmail) => {
     written++;
   }
 
+  return { written, faultIdByResource };
+};
+
+// ---------------------------------------------------------------
+// 7b. Supply request seeding (Stage 4e.8).
+// ---------------------------------------------------------------
+//
+// Three demo requests covering each non-terminal lifecycle stage so a
+// reviewer can see pending review (Stores' main queue), approved
+// (waiting fulfillment), and fulfilled (closed loop) without taking
+// any action. Linked-fault is wired up via faultResourceId so the
+// seeded request can point at the matching live fault doc.
+
+const DEMO_SUPPLY_REQUESTS = [
+  {
+    // PENDING — links to the cracked-lens fault on Projector A. Mixed-
+    // item example so the items table renders multi-row in the demo.
+    requesterEmail: "demo.maintenance@gimpa.edu.gh",
+    faultResourceId: "EQP-001",
+    items: [
+      { resourceAssetCode: "TLS-001", quantityRequested: 1, unit: "set" },
+      { resourceAssetCode: "OSS-001", quantityRequested: 5, unit: "boxes" }
+    ],
+    reason:
+      "Need supplies to inspect and document the cracked lens incident " +
+      "on Projector A — tool kit for disassembly, paper for the report.",
+    status: "pending",
+    minutesAgo: 40
+  },
+  {
+    // APPROVED — standalone request from the second maintenance tech.
+    // Approved by stores; not yet fulfilled.
+    requesterEmail: "demo.maintenance2@gimpa.edu.gh",
+    faultResourceId: null,
+    items: [
+      { resourceAssetCode: "TLS-001", quantityRequested: 2, unit: "sets" }
+    ],
+    reason:
+      "Two extra tool kits for the IT block walk-through inspection " +
+      "next week — current kit is shared with the workshop team.",
+    status: "approved",
+    approvedByEmail: "demo.stores@gimpa.edu.gh",
+    approverNotes: "Approved — kits on hand.",
+    minutesAgo: 240,
+    approvedMinutesAgo: 90
+  },
+  {
+    // FULFILLED — older admin-side request fully closed.
+    requesterEmail: "demo.maintadmin@gimpa.edu.gh",
+    faultResourceId: null,
+    items: [
+      { resourceAssetCode: "OSS-001", quantityRequested: 10, unit: "boxes" }
+    ],
+    reason:
+      "Replenish the office paper stock for the maintenance admin " +
+      "office — current ream is almost out.",
+    status: "fulfilled",
+    approvedByEmail: "demo.stores@gimpa.edu.gh",
+    approverNotes: "Approved.",
+    fulfilledByEmail: "demo.stores@gimpa.edu.gh",
+    quantitiesIssued: [10],
+    minutesAgo: 60 * 24 * 3,         // 3 days ago
+    approvedMinutesAgo: 60 * 24 * 3 - 30,
+    fulfilledMinutesAgo: 60 * 24 * 2 // ~1 day later
+  }
+];
+
+// Pull resource name + category by assetCode for the denormalized
+// fields. Tolerant of missing entries so a seed with --skip-auth (no
+// resources) still shows a clean error rather than crashing.
+const findDemoResource = (assetCode) =>
+  DEMO_RESOURCES.find((r) => r.assetCode === assetCode) || null;
+
+const seedSupplyRequests = async (accountsByEmail, faultIdByResource) => {
+
+  let written = 0;
+
+  const tsAgo = (minutesAgo) =>
+    admin.firestore.Timestamp.fromMillis(
+      adminNow() - minutesAgo * 60 * 1000
+    );
+
+  for (const r of DEMO_SUPPLY_REQUESTS) {
+
+    const requester = accountsByEmail[r.requesterEmail];
+    if (!requester) {
+      console.warn(
+        `  ! skipping supply request: requester ${r.requesterEmail} ` +
+        `not found in seeded accounts`
+      );
+      continue;
+    }
+
+    // Build items array with denormalized resource name + unit, mirroring
+    // what createSupplyRequest.js writes from the live client.
+    const items = r.items.map((it, idx) => {
+      const res = findDemoResource(it.resourceAssetCode);
+      const quantityIssued = r.status === "fulfilled"
+        ? (r.quantitiesIssued?.[idx] ?? it.quantityRequested)
+        : null;
+      return {
+        resourceId: it.resourceAssetCode,
+        resourceName: res?.resourceName || it.resourceAssetCode,
+        quantityRequested: it.quantityRequested,
+        quantityIssued,
+        unit: it.unit || "pieces"
+      };
+    });
+
+    const requesterActor = {
+      uid: requester.uid,
+      name: requester.fullName,
+      role: requester.userDoc.role
+    };
+
+    const approver = r.approvedByEmail
+      ? accountsByEmail[r.approvedByEmail]
+      : null;
+    const approverActor = approver
+      ? { uid: approver.uid, name: approver.fullName, role: approver.userDoc.role }
+      : null;
+
+    const fulfiller = r.fulfilledByEmail
+      ? accountsByEmail[r.fulfilledByEmail]
+      : null;
+    const fulfillerActor = fulfiller
+      ? { uid: fulfiller.uid, name: fulfiller.fullName, role: fulfiller.userDoc.role }
+      : null;
+
+    // Optional fault link — resolved from the in-memory map seedFaults
+    // built up earlier.
+    const linkedFaultId = r.faultResourceId
+      ? (faultIdByResource[r.faultResourceId] || null)
+      : null;
+    const linkedFaultResource = r.faultResourceId
+      ? findDemoResource(r.faultResourceId)
+      : null;
+
+    const requestRef = db.collection("supplyRequests").doc();
+
+    const createdAtTs = tsAgo(r.minutesAgo);
+    const approvedAtTs = r.approvedMinutesAgo != null
+      ? tsAgo(r.approvedMinutesAgo)
+      : null;
+    const fulfilledAtTs = r.fulfilledMinutesAgo != null
+      ? tsAgo(r.fulfilledMinutesAgo)
+      : null;
+
+    const payload = {
+      relatedFaultId: linkedFaultId,
+      relatedResourceId: r.faultResourceId || null,
+      relatedResourceName: linkedFaultResource?.resourceName || null,
+
+      items,
+      reason: r.reason,
+
+      requesterId: requester.uid,
+      requesterName: requester.fullName,
+      requesterRole: requester.userDoc.role,
+
+      status: r.status,
+      routedToRoles: ["Stores/Inventory Officer", "super_admin"],
+
+      approvedBy: approverActor,
+      approvedAt: approvedAtTs,
+      approverNotes: r.approverNotes || null,
+
+      deniedAt: null,
+      deniedBy: null,
+      denialReason: null,
+
+      fulfilledAt: fulfilledAtTs,
+      fulfilledBy: fulfillerActor,
+
+      cancelledAt: null,
+      cancelledBy: null,
+
+      createdAt: createdAtTs,
+      updatedAt: fulfilledAtTs || approvedAtTs || createdAtTs
+    };
+
+    // Build the statusHistory entries that mirror the request's
+    // observed lifecycle. Each entry is written with a timestamp
+    // matching the parent fields so the audit trail reads naturally.
+    const historyEntries = [
+      {
+        changedAt: createdAtTs,
+        oldStatus: null,
+        newStatus: "pending",
+        notes: "Supply request submitted",
+        changedBy: requesterActor
+      }
+    ];
+
+    if (r.status === "approved" || r.status === "fulfilled") {
+      historyEntries.push({
+        changedAt: approvedAtTs,
+        oldStatus: "pending",
+        newStatus: "approved",
+        notes: r.approverNotes || "",
+        changedBy: approverActor || requesterActor
+      });
+    }
+
+    if (r.status === "fulfilled") {
+      historyEntries.push({
+        changedAt: fulfilledAtTs,
+        oldStatus: "approved",
+        newStatus: "fulfilled",
+        notes: "",
+        changedBy: fulfillerActor || requesterActor
+      });
+    }
+
+    const batch = db.batch();
+    batch.set(requestRef, payload);
+    for (const entry of historyEntries) {
+      const eref = requestRef.collection("statusHistory").doc();
+      batch.set(eref, entry);
+    }
+    await batch.commit();
+
+    written++;
+  }
+
   return written;
 };
+
+// Date.now() shim — the rest of the script reads admin.firestore.* but
+// the supplyRequest seeder needs a wall-clock reference for tsAgo. The
+// `now` const inside seedFaults is local to that function, so we
+// expose a stable helper here.
+function adminNow() {
+  return Date.now();
+}
 
 // ---------------------------------------------------------------
 // 8. Main.
@@ -1427,13 +1695,14 @@ const seedFaults = async (accountsByEmail) => {
   }
 
   console.log("\nWiping existing data...");
+  const wipedSupplyRequests = await wipeSupplyRequestsCollection();
   const wipedFaults = await wipeFaultsCollection();
   const wipedBookings = await wipeBookingsCollection();
   const wipedResources = await wipeResourcesCollection();
   const wipedUsers = await wipeUsersExceptSuperAdmin();
   console.log(
-    `Wiped ${wipedFaults} faults, ${wipedBookings} bookings, ` +
-    `${wipedResources} resources, ${wipedUsers} users.`
+    `Wiped ${wipedSupplyRequests} supply requests, ${wipedFaults} faults, ` +
+    `${wipedBookings} bookings, ${wipedResources} resources, ${wipedUsers} users.`
   );
 
   let seededAccounts = [];
@@ -1500,14 +1769,21 @@ const seedFaults = async (accountsByEmail) => {
   console.log(`Seeded ${bookingCount} bookings (including 1 with chat thread).`);
 
   console.log("\nSeeding faults...");
-  const faultCount = await seedFaults(accountsByEmail);
+  const { written: faultCount, faultIdByResource } =
+    await seedFaults(accountsByEmail);
   console.log(`Seeded ${faultCount} faults (1 with placeholder image).`);
+
+  console.log("\nSeeding supply requests...");
+  const supplyRequestCount =
+    await seedSupplyRequests(accountsByEmail, faultIdByResource);
+  console.log(`Seeded ${supplyRequestCount} supply requests.`);
 
   printSummary({
     accounts: seededAccounts,
     resourceCount,
     bookingCount,
     faultCount,
+    supplyRequestCount,
     skipAuth: false
   });
 
@@ -1518,7 +1794,7 @@ const seedFaults = async (accountsByEmail) => {
   process.exit(1);
 });
 
-function printSummary({ accounts, resourceCount, bookingCount, faultCount, skipAuth }) {
+function printSummary({ accounts, resourceCount, bookingCount, faultCount, supplyRequestCount, skipAuth }) {
   console.log("\n=====================================");
   console.log("Demo data ready.");
   console.log("=====================================\n");
@@ -1535,6 +1811,9 @@ function printSummary({ accounts, resourceCount, bookingCount, faultCount, skipA
   console.log(`Bookings seeded:   ${bookingCount}`);
   if (faultCount != null) {
     console.log(`Faults seeded:     ${faultCount}`);
+  }
+  if (supplyRequestCount != null) {
+    console.log(`Supply requests:   ${supplyRequestCount}`);
   }
   console.log(`Super-admin preserved: ${SUPER_ADMIN_EMAIL}`);
   console.log("\nDone. Database ready for demo.\n");

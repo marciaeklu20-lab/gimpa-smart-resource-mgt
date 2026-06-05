@@ -12,7 +12,7 @@ import {
 
 import app from "@/firebase/config";
 
-import { FaTools, FaSpinner, FaCheckCircle, FaWrench, FaUserSlash } from "react-icons/fa";
+import { FaTools, FaSpinner, FaCheckCircle, FaWrench, FaUserSlash, FaBoxOpen } from "react-icons/fa";
 
 const db = getFirestore(app);
 
@@ -25,6 +25,7 @@ export default function MaintenanceDashboard() {
   const [resolvedThisWeekCount, setResolvedThisWeekCount] = useState(0);
   const [inMaintenanceCount, setInMaintenanceCount] = useState(0);
   const [unassignedCount, setUnassignedCount] = useState(0);
+  const [pendingSupplyCount, setPendingSupplyCount] = useState(0);
 
   // Four parallel listeners: 3 over /faults (Stage 4d) + 1 over
   // /resources (Stage 4c). All four unsubscribes are returned in a
@@ -98,6 +99,18 @@ export default function MaintenanceDashboard() {
       (err) => console.error("Unassigned faults listener:", err)
     ));
 
+    // Stage 4e.8: pending supply requests across the org. Visible to
+    // every maintenance-domain user (rules let them read all supply
+    // requests).
+    unsubs.push(onSnapshot(
+      query(
+        collection(db, "supplyRequests"),
+        where("status", "==", "pending")
+      ),
+      (snap) => setPendingSupplyCount(snap.size),
+      (err) => console.error("Pending supply requests listener:", err)
+    ));
+
     return () => {
       unsubs.forEach((u) => u());
     };
@@ -145,6 +158,12 @@ export default function MaintenanceDashboard() {
           icon={<FaUserSlash size={22} />}
           label="Unassigned Faults"
           value={unassignedCount}
+        />
+
+        <KpiCard
+          icon={<FaBoxOpen size={22} />}
+          label="Pending Supply Requests"
+          value={pendingSupplyCount}
         />
 
       </div>

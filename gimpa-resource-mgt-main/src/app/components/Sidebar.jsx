@@ -7,11 +7,11 @@ import {
   getFirestore,
   doc,
   getDoc,
-  collect
-  ion,
+  collection,
   query,
   where,
   onSnapshot
+  
 } from "firebase/firestore";
 import app from "@/firebase/config";
 

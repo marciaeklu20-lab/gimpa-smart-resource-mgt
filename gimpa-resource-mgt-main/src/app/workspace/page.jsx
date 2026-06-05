@@ -15,6 +15,7 @@ import Users from "@/app/workspace/admin-dashboard/Users";
 import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
 import Maintenance from "@/app/workspace/maintenance/Maintenance";
+import SupplyRequestsList from "@/app/workspace/maintenance/supplyRequest/SupplyRequestsList";
 
 import { PLATFORM_ADMINS } from "@/app/lib/roles";
 
@@ -93,7 +94,15 @@ export default function WorkspacePage() {
     }
   }, [activeSidebar, activeTab]);
 
-  const resourceTabs = ["Campus Resources", "Bookings"];
+  // Stage 4e.8: Stores Officer + super_admin get a "Supply Requests"
+  // tab inside Resource Management as their primary surface. Other
+  // resource managers (Facility, IT, Logistics) and the platform-
+  // admin tier without stores duties don't need it here — they can
+  // still view supply requests via the Maintenance module's sub-tab.
+  const STORES_TAB_ROLES = ["Stores/Inventory Officer", "super_admin"];
+  const resourceTabs = STORES_TAB_ROLES.includes(userRole)
+    ? ["Campus Resources", "Bookings", "Supply Requests"]
+    : ["Campus Resources", "Bookings"];
   const adminTabs = ["Approvals", "Users"];
 
   // Mirrors Sidebar.jsx — the sidebar already hides the Admin Dashboard
@@ -206,7 +215,15 @@ export default function WorkspacePage() {
             />
           )}
 
-       
+          {/* Stage 4e.8: Stores-side surface on the supplyRequests queue.
+              Same component the Maintenance module uses — defaults switch
+              by role (Stores lands on Pending, Maintenance on My
+              Requests). */}
+          {activeSidebar === "Resource Management" && activeTab === "Supply Requests" && (
+            <SupplyRequestsList navigate={navigate} />
+          )}
+
+
           {/* ADMIN DASHBOARD TABS */}
         
           {activeSidebar === "Admin Dashboard" && (
