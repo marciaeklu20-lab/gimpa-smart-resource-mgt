@@ -16,6 +16,7 @@ import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
 import Maintenance from "@/app/workspace/maintenance/Maintenance";
 import SupplyRequestsList from "@/app/workspace/maintenance/supplyRequest/SupplyRequestsList";
+import AiBotButton from "@/app/workspace/ai-bot/AiBotButton";
 
 import { PLATFORM_ADMINS } from "@/app/lib/roles";
 
@@ -291,6 +292,12 @@ export default function WorkspacePage() {
         </div>
 
       </div>
+
+      {/* Stage 4p — floating AI availability bot. Self-contained: the
+          panel lazily subscribes to resources/bookings/faults only while
+          open, so we don't hoist those subscriptions to workspace state.
+          Hidden by AiBotButton itself when there's no signed-in user. */}
+      <AiBotButton currentUser={currentUser} navigate={navigate} />
 
     </div>
   );

@@ -10,14 +10,23 @@
  *       request and approve/reject from the admin dashboard.
  *   - generateInsights  (Stage 4q.2)
  *       Callable function that takes a compact analytics summary +
- *       role + period label, asks Gemini Flash-Lite for 3-5 narrative
- *       insights, and returns the validated JSON array. Definition
- *       lives in src/generateInsights.js to keep this index thin.
+ *       role + period label, asks Groq (Llama 3.3 70B) for 3-5
+ *       narrative insights, and returns the validated JSON array.
+ *       Definition lives in src/generateInsights.js to keep this index
+ *       thin.
+ *   - askAiBot  (Stage 4p)
+ *       Callable function backing the floating AI availability bot.
+ *       Takes a single question + role + a compact PII-scrubbed context
+ *       payload, asks Groq (Llama 3.3 70B) for a grounded answer plus
+ *       referenced resourceIds, and returns the validated result.
+ *       Definition lives in src/askAiBot.js. Read-only — suggests
+ *       actions but never performs them.
  *
  * Secrets:
  *   - RESEND_API_KEY — the Resend API key, stored as a Firebase
  *     Functions Secret (never in source).
- *   - GEMINI_API_KEY — Google AI Studio API key for Gemini.
+ *   - GROQ_API_KEY — Groq Cloud API key, shared by generateInsights
+ *     and askAiBot.
  *
  * Region:
  *   - europe-west1 (matches firebase.json frameworksBackend.region).
@@ -40,10 +49,15 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import { Resend } from "resend";
 
-// Stage 4q.2 — re-export the Gemini-backed callable. Keeping the
-// definition in src/ avoids ballooning this file as more functions
-// land; index.js stays the routing table.
+// Stage 4q.2 — re-export the Groq-backed analytics insights callable.
+// Keeping the definition in src/ avoids ballooning this file as more
+// functions land; index.js stays the routing table.
 export { generateInsights } from "./src/generateInsights.js";
+
+// Stage 4p — Groq-backed AI availability bot. Single-turn, read-only
+// Q&A grounded on the PII-scrubbed context the client sends. Reuses the
+// same GROQ_API_KEY secret as generateInsights.
+export { askAiBot } from "./src/askAiBot.js";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 

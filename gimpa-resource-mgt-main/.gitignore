@@ -1,0 +1,9 @@
+deploy.log
+node_modules/
+.next/
+*.log
+.env*.local
+node_modules/
+.next/
+*.log
+.env*.local
