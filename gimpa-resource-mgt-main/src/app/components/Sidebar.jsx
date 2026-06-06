@@ -22,7 +22,7 @@ import { PLATFORM_ADMINS, MAINTENANCE_ROLES } from "@/app/lib/roles";
 
 import { MdOutlineDashboard, MdNotificationsActive } from "react-icons/md";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
-import { FaRobot, FaTools } from "react-icons/fa";
+import { FaTools } from "react-icons/fa";
 import { GrResources } from "react-icons/gr";
 import { RiAdminLine } from "react-icons/ri";
 
@@ -190,7 +190,6 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
       : []),
 
     { name: "Analytics", icon: <BsMenuButtonWide size={20} /> },
-    { name: "AI Assistant", icon: <FaRobot size={20} /> },
 
     // Admin Dashboard visible only to platform admins.
     ...(PLATFORM_ADMINS.includes(role)
