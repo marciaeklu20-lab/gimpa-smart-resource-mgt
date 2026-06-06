@@ -1,0 +1,114 @@
+/* Stage 4l — Email Reports admin tab. */
+
+.email-reports {
+  padding: 24px;
+  max-width: 680px;
+}
+
+.email-reports-header {
+  margin-bottom: 20px;
+}
+.email-reports-title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #1f2937);
+}
+.email-reports-subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary, #6b7280);
+}
+
+.email-reports-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  background: var(--card-bg, #ffffff);
+}
+.email-reports-card-text h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+}
+.email-reports-card-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, #6b7280);
+}
+
+.email-reports-send-btn {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: #4a6cf7;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.email-reports-send-btn:hover:not(:disabled) {
+  background: #3b5ae0;
+}
+.email-reports-send-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.email-reports-result {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.email-reports-result-success { background: #dcfce7; color: #166534; }
+.email-reports-result-skipped { background: #e0e7ff; color: #3730a3; }
+.email-reports-result-warning { background: #fef9c3; color: #854d0e; }
+.email-reports-result-error   { background: #fee2e2; color: #991b1b; }
+
+.email-reports-history {
+  margin-top: 24px;
+}
+.email-reports-history h4 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #6b7280);
+}
+.email-reports-history ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.email-reports-history li {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color, #f3f4f6);
+  font-size: 13px;
+}
+.email-reports-history-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, #6b7280);
+}
+.email-reports-history-msg {
+  color: var(--text-primary, #1f2937);
+}
+
+.email-reports-footer {
+  margin-top: 28px;
+  font-size: 12px;
+  color: var(--text-secondary, #9ca3af);
+}

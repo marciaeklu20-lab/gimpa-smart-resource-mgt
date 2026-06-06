@@ -12,6 +12,7 @@ import Header from "@/app/components/Header";
 import CampusResource from "@/app/workspace/resource-management/campus-resource";
 import BookingRequests from "@/app/workspace/resource-management/BookingRequests";
 import Users from "@/app/workspace/admin-dashboard/Users";
+import EmailReports from "@/app/workspace/admin-dashboard/EmailReports";
 import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
 import Maintenance from "@/app/workspace/maintenance/Maintenance";
@@ -127,7 +128,7 @@ export default function WorkspacePage() {
   const resourceTabs = STORES_TAB_ROLES.includes(userRole)
     ? ["Campus Resources", "Bookings", "Supply Requests"]
     : ["Campus Resources", "Bookings"];
-  const adminTabs = ["Approvals", "Users"];
+  const adminTabs = ["Approvals", "Users", "Email Reports"];
 
   // Mirrors Sidebar.jsx — the sidebar already hides the Admin Dashboard
   // tab for non-admins; Analytics uses the same gate so a non-admin who
@@ -282,6 +283,14 @@ export default function WorkspacePage() {
           {activeSidebar === "Admin Dashboard" && activeTab === "Users" && (
           <Users />
         )}
+
+          {/* Stage 4l: Email Reports — on-demand trigger for the weekly
+              super-admin digest. The callable re-verifies super_admin
+              server-side, so visibility here just mirrors the existing
+              Admin Dashboard gating. */}
+          {activeSidebar === "Admin Dashboard" && activeTab === "Email Reports" && (
+            <EmailReports />
+          )}
 
           {/* ANALYTICS — Stage 4j: role-routing wrapper handles per-role
               views internally; no top-level admin gate any more. */}

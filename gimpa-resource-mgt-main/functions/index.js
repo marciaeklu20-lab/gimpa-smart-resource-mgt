@@ -21,12 +21,20 @@
  *       referenced resourceIds, and returns the validated result.
  *       Definition lives in src/askAiBot.js. Read-only — suggests
  *       actions but never performs them.
+ *   - sendWeeklyReportsScheduled / sendWeeklyReportNow  (Stage 4l)
+ *       Scheduled (Monday 09:00 UTC) + on-demand callable that build a
+ *       7-day activity summary, ask Groq for a short narrative, render a
+ *       table-based HTML email, and send it to all super_admins via
+ *       Resend. The callable verifies super_admin role via a Firestore
+ *       lookup. Both reuse the RESEND_API_KEY + GROQ_API_KEY secrets.
+ *       Definition lives in src/sendWeeklyReports.js.
  *
  * Secrets:
  *   - RESEND_API_KEY — the Resend API key, stored as a Firebase
- *     Functions Secret (never in source).
- *   - GROQ_API_KEY — Groq Cloud API key, shared by generateInsights
- *     and askAiBot.
+ *     Functions Secret (never in source). Shared by
+ *     notifyAdminOnPendingSignup and the Stage 4l weekly reports.
+ *   - GROQ_API_KEY — Groq Cloud API key, shared by generateInsights,
+ *     askAiBot, and the Stage 4l weekly reports.
  *
  * Region:
  *   - europe-west1 (matches firebase.json frameworksBackend.region).
@@ -58,6 +66,14 @@ export { generateInsights } from "./src/generateInsights.js";
 // Q&A grounded on the PII-scrubbed context the client sends. Reuses the
 // same GROQ_API_KEY secret as generateInsights.
 export { askAiBot } from "./src/askAiBot.js";
+
+// Stage 4l — scheduled + on-demand weekly admin email reports. Both
+// reuse the RESEND_API_KEY + GROQ_API_KEY secrets; the callable verifies
+// super_admin role server-side via a Firestore lookup.
+export {
+  sendWeeklyReportsScheduled,
+  sendWeeklyReportNow
+} from "./src/sendWeeklyReports.js";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 
