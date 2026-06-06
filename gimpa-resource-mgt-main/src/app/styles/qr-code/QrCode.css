@@ -1,0 +1,234 @@
+/* Stage 4k — QR codes for resources.
+   Three groups of rules live here:
+     1. the small header trigger button (.qr-code-btn)
+     2. the QR modal (overlay + card + buttons)
+     3. the public /r/<assetCode> scan-landing page
+   The public page deliberately uses explicit colours (not the theme
+   CSS variables) so an unauthenticated visitor on any device sees a
+   stable, light, mobile-friendly layout regardless of the theme the
+   ThemeProvider seeds from localStorage. */
+
+/* ---- 1. Header trigger button ------------------------------------ */
+
+.qr-code-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4a6cf7;
+  background: #f5f7ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.qr-code-btn:hover {
+  background: #e0e7ff;
+}
+
+/* ---- 2. QR modal -------------------------------------------------- */
+
+.qr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+.qr-modal {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 420px;
+  width: 92%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.qr-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  color: #1f2937;
+}
+.qr-modal-svg-wrap {
+  padding: 12px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.qr-modal-url {
+  font-family: monospace;
+  font-size: 12px;
+  color: #6b7280;
+  word-break: break-all;
+  text-align: center;
+}
+.qr-modal-buttons {
+  display: flex;
+  gap: 8px;
+}
+.qr-modal-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+}
+.qr-modal-btn-primary {
+  background: #4a6cf7;
+  color: white;
+  border-color: #4a6cf7;
+}
+.qr-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #6b7280;
+  line-height: 1;
+}
+
+/* Off-screen canvas used only as the PNG export source — never shown. */
+.qr-modal-canvas-offscreen {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ---- 3. Public scan-landing page (/r/<assetCode>) ---------------- */
+
+.public-route-root {
+  min-height: 100vh;
+  background: #ffffff;
+}
+
+.public-resource-page {
+  min-height: 100vh;
+  padding: 24px;
+  max-width: 480px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
+.public-resource-logo {
+  display: block;
+  height: 40px;
+  width: auto;
+  margin-bottom: 24px;
+}
+
+.public-resource-name {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: #1f2937;
+}
+.public-resource-code {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #e0e7ff;
+  color: #4338ca;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: monospace;
+}
+.public-resource-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin-top: 12px;
+}
+
+.public-resource-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.public-resource-badge {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+/* Condition colours — self-contained so the page doesn't depend on the
+   workspace pill stylesheet, which it never imports. */
+.public-badge-excellent { background: #dcfce7; color: #166534; }
+.public-badge-good      { background: #dbeafe; color: #1e40af; }
+.public-badge-fair      { background: #fef9c3; color: #854d0e; }
+.public-badge-poor      { background: #ffedd5; color: #9a3412; }
+.public-badge-out_of_service { background: #fee2e2; color: #991b1b; }
+/* Lifecycle colours. */
+.public-badge-active         { background: #dcfce7; color: #166534; }
+.public-badge-in_maintenance { background: #fef9c3; color: #854d0e; }
+.public-badge-retired        { background: #f3f4f6; color: #374151; }
+.public-badge-disposed       { background: #f3f4f6; color: #374151; }
+.public-badge-lost           { background: #fee2e2; color: #991b1b; }
+
+.public-resource-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-top: 16px;
+}
+.public-resource-value {
+  font-size: 15px;
+  color: #1f2937;
+  margin-top: 4px;
+}
+
+.public-resource-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+.public-resource-footer a {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #4a6cf7;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.public-resource-state {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  color: #6b7280;
+}
+.public-resource-state h1 {
+  font-size: 20px;
+  color: #1f2937;
+  margin: 0 0 8px;
+}

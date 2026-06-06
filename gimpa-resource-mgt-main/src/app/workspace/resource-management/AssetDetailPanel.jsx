@@ -35,6 +35,7 @@ import { responsibleRoleForCategory } from "@/app/lib/categoryResponsibility";
 import { PLATFORM_ADMINS, RESOURCE_MANAGERS } from "@/app/lib/roles";
 
 import BookingForm from "./BookingForm";
+import QrCodeButton from "./qrCode/QrCodeButton";
 
 // Stage 4h: lazy — TransferAssetModal pulls the staff picker + writeBatch
 // service when first opened. Keeps the AssetDetailPanel chunk lean for
@@ -236,6 +237,10 @@ export default function AssetDetailPanel({
           <div className="asset-detail-code">
             {selectedAsset.assetCode}
           </div>
+
+          {/* Stage 4k: QR code — encodes the public /r/<assetCode> scan
+              URL. Lazy-loads the modal + qrcode.react on first click. */}
+          <QrCodeButton resource={selectedAsset} />
         </div>
 
         {canBookResource(currentUserRole) && isBookable(selectedAsset) && (

@@ -196,7 +196,18 @@ service cloud.firestore {
     // ---------------------------------------------------------------
     match /resources/{assetCode} {
 
-      allow read: if isApproved();
+      // Stage 4k: public read so QR codes affixed to physical assets
+      // resolve without sign-in (the /r/<assetCode> scan-landing page
+      // fetches this doc unauthenticated). Sensitive fields (cost,
+      // custodian email, vendor, acquisition date) are filtered
+      // client-side by PublicResourceView — the rule is liberal because
+      // Firestore rules can't restrict reads by field.
+      // Future Work: move sensitive fields to a
+      // /resources/{id}/private subcollection so the read can be scoped
+      // at the document level instead.
+      // NB: create/update/delete below stay UNCHANGED — still tightly
+      // scoped to admins / resource managers / maintenance staff.
+      allow read: if true;
 
       // Stage 4e.7: only platform admins (super_admin / Secretariat /
       // IT Officer-as-admin) OR a resource manager creating within
