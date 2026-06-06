@@ -8,10 +8,16 @@
  *       awaiting admin approval (`needsApproval === true`), it sends
  *       an email to the super-admin via Resend so they can review the
  *       request and approve/reject from the admin dashboard.
+ *   - generateInsights  (Stage 4q.2)
+ *       Callable function that takes a compact analytics summary +
+ *       role + period label, asks Gemini Flash-Lite for 3-5 narrative
+ *       insights, and returns the validated JSON array. Definition
+ *       lives in src/generateInsights.js to keep this index thin.
  *
  * Secrets:
  *   - RESEND_API_KEY — the Resend API key, stored as a Firebase
  *     Functions Secret (never in source).
+ *   - GEMINI_API_KEY — Google AI Studio API key for Gemini.
  *
  * Region:
  *   - europe-west1 (matches firebase.json frameworksBackend.region).
@@ -33,6 +39,11 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import { Resend } from "resend";
+
+// Stage 4q.2 — re-export the Gemini-backed callable. Keeping the
+// definition in src/ avoids ballooning this file as more functions
+// land; index.js stays the routing table.
+export { generateInsights } from "./src/generateInsights.js";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 

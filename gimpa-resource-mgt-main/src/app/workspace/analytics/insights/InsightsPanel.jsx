@@ -14,6 +14,7 @@ import { useMemo } from "react";
 
 import { computeInsights } from "./insightRules";
 import InsightCard from "./InsightCard";
+import AiInsightsSection from "./AiInsightsSection";
 
 export default function InsightsPanel({ data, period, currentUser, navigate }) {
 
@@ -55,6 +56,15 @@ export default function InsightsPanel({ data, period, currentUser, navigate }) {
           ))}
         </div>
       )}
+
+      {/* Stage 4q.2 — AI narrative section sits beneath the
+          rule-based cards. Gracefully no-ops for users without a uid. */}
+      <AiInsightsSection
+        data={data}
+        period={period}
+        currentUser={currentUser}
+        navigate={navigate}
+      />
 
     </section>
   );

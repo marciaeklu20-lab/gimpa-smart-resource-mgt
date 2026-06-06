@@ -27,9 +27,13 @@ const CATEGORY_GLYPH = {
 
 export default function InsightCard({ insight, onClick }) {
 
-  const { severity, category, title, description, metric, target } = insight;
+  const { severity, category, title, description, metric, target, rationale, source } = insight;
   const glyph = CATEGORY_GLYPH[category] || "•";
-  const hasTarget = !!target;
+  const isAi = source === "ai";
+  // AI insights are observational only — they're narrative, not
+  // navigable. The CSS .insight-card-ai variant carries the badge and
+  // suppresses the hover lift.
+  const hasTarget = !isAi && !!target;
 
   const body = (
     <>
@@ -43,8 +47,12 @@ export default function InsightCard({ insight, onClick }) {
       <div className="insight-card-title">{title}</div>
       <div className="insight-card-description">{description}</div>
 
+      {isAi && rationale && (
+        <div className="insight-card-rationale">{rationale}</div>
+      )}
+
       <div className="insight-card-footer">
-        {metric && (
+        {metric && metric.delta && (
           <span className="insight-card-metric">{metric.delta}</span>
         )}
         {hasTarget && (
@@ -54,9 +62,11 @@ export default function InsightCard({ insight, onClick }) {
     </>
   );
 
+  const baseClass = `insight-card insight-card-${severity}${isAi ? " insight-card-ai" : ""}`;
+
   if (!hasTarget) {
     return (
-      <div className={`insight-card insight-card-${severity} insight-card-observational`}>
+      <div className={`${baseClass} insight-card-observational`}>
         {body}
       </div>
     );
@@ -65,7 +75,7 @@ export default function InsightCard({ insight, onClick }) {
   return (
     <button
       type="button"
-      className={`insight-card insight-card-${severity}`}
+      className={baseClass}
       onClick={() => onClick?.(insight)}
       aria-label={`Open insight: ${title}`}
     >
