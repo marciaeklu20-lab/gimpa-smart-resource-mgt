@@ -1,0 +1,203 @@
+/* Stage 4o Phase 1 — Live Map layout + colours.
+   Sidebar (filters) on the left, map filling the remaining width. The
+   container takes an explicit height because Google Maps needs one to
+   render. workspace-main contributes the 100px header offset + 2rem
+   padding, so we subtract a bit more than the header height. */
+
+.live-map-container {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 180px);
+  min-height: 480px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* ---- Filters sidebar ------------------------------------------------ */
+.live-map-filters {
+  width: 280px;
+  flex: 0 0 280px;
+  padding: 1.25rem;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.live-map-filters-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.live-map-filter-group {
+  margin-bottom: 1.25rem;
+}
+
+.live-map-filter-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+}
+
+.live-map-filter-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+.live-map-search-input,
+.live-map-condition-select {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  box-sizing: border-box;
+}
+
+.live-map-search-input:focus,
+.live-map-condition-select:focus {
+  outline: none;
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.15);
+}
+
+.live-map-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.live-map-checkbox input {
+  cursor: pointer;
+}
+
+.live-map-reset-btn {
+  width: 100%;
+  padding: 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.live-map-reset-btn:hover {
+  background: #f3f4f6;
+}
+
+.live-map-counter {
+  margin: 1rem 0 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+/* ---- Map canvas ----------------------------------------------------- */
+.live-map-canvas {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.live-map-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  font-size: 0.95rem;
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+/* Sticky informational banner at the bottom of the map. */
+.live-map-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #374151;
+  background: rgba(249, 250, 251, 0.95);
+  border-top: 1px solid #e5e7eb;
+}
+
+/* ---- InfoWindow content (Google default chrome, our body) ----------- */
+.live-map-infowindow {
+  min-width: 200px;
+  font-size: 0.85rem;
+  color: #111827;
+}
+
+.live-map-infowindow h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.live-map-infowindow dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.live-map-infowindow dt {
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.live-map-infowindow dd {
+  margin: 0;
+  color: #111827;
+}
+
+/* ---- Error state (missing API key / load failure) ------------------- */
+.live-map-error {
+  max-width: 520px;
+  margin: 2rem auto;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.live-map-error h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.live-map-error p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.live-map-error code {
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+  background: #fee2e2;
+  border-radius: 4px;
+}

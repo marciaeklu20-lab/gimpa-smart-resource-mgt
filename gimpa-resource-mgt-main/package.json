@@ -9,6 +9,7 @@
     "lint": "next lint --no-error-on-unmatched-pattern"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "firebase": "^12.4.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
