@@ -2,10 +2,10 @@
 //
 // Two entry points, one pipeline (runWeeklyReport):
 //   - sendWeeklyReportsScheduled : onSchedule, every Monday 09:00 UTC
-//   - sendWeeklyReportNow        : onCall, super_admin "Send test report"
+//   - sendWeeklyReportNow        : onCall, admin-level "Send test report"
 //
 // Pipeline: buildReportData (7d aggregate) → Groq narrative →
-// renderReportEmail → Resend to all super_admin addresses.
+// renderReportEmail → Resend to all admin-level addresses.
 //
 // Reuses the existing RESEND_API_KEY + GROQ_API_KEY secrets — no new
 // secrets, no new Firestore collections (a reportRuns audit log is
@@ -27,6 +27,31 @@ const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 const GROQ_API_KEY = defineSecret("GROQ_API_KEY");
 
 const MODEL_ID = "llama-3.3-70b-versatile";
+
+// Stage 4l: admin-level roles. MUST stay in sync with ADMIN_LEVEL_ROLES
+// in src/app/lib/roles.js — Cloud Functions can't easily import from the
+// Next.js src/ tree, so the list is duplicated here.
+const ADMIN_LEVEL_ROLES = new Set([
+  "super_admin",
+  "Secretariat Admin",
+  "IT Officer",
+  "Administrative Officer",
+  "Higher Level Management",
+  "Facility/Estate Officer",
+  "Logistics Officer",
+  "Stores/Inventory Officer",
+  "Maintenance Admin"
+]);
+
+// Stage 4l demo-mode cap: Resend's sandbox tier (default
+// onboarding@resend.dev sender) only delivers to the Resend
+// account owner's verified email. Any other recipient gets
+// rejected with 403 validation_error. Future Work: verify a
+// gimpa.edu.gh (or similar) domain at resend.com/domains and
+// remove this allow-list.
+const DEMO_RECIPIENT_ALLOWLIST = new Set([
+  "marcia.ea.geal@gmail.com"
+]);
 
 // Shared base options for both entry points.
 const COMMON_OPTS = {
@@ -55,8 +80,9 @@ export const sendWeeklyReportsScheduled = onSchedule(
 );
 
 // ---------------------------------------------------------------------
-// Callable — admin clicks "Send test report". Verifies super_admin via
-// a Firestore lookup; never trusts a client-claimed role.
+// Callable — admin clicks "Send test report". Verifies the caller holds
+// an admin-level role via a Firestore lookup; never trusts a
+// client-claimed role.
 // ---------------------------------------------------------------------
 export const sendWeeklyReportNow = onCall(
   {
@@ -68,9 +94,9 @@ export const sendWeeklyReportNow = onCall(
       throw new HttpsError("unauthenticated", "Sign-in required");
     }
 
-    const allowed = await isSuperAdmin(request.auth.uid);
-    if (!allowed) {
-      throw new HttpsError("permission-denied", "Super-admin only");
+    const adminCheck = await ensureAdminLevel(request.auth.uid);
+    if (!adminCheck.allowed) {
+      throw new HttpsError("permission-denied", "Admin access required");
     }
 
     return runWeeklyReport({
@@ -106,9 +132,20 @@ async function runWeeklyReport({ trigger }) {
   const narrative = await generateNarrative(reportData);
   const { html, text, subject } = renderReportEmail(reportData, narrative);
 
-  const recipients = await getSuperAdminEmails();
+  const allRecipients = await getAdminLevelEmails();
+  const recipients = allRecipients.filter((e) =>
+    DEMO_RECIPIENT_ALLOWLIST.has(e)
+  );
+  const skipped = allRecipients.length - recipients.length;
+  if (skipped > 0) {
+    console.info(
+      `[sendWeeklyReports] Demo-mode allow-list filtered ${skipped} ` +
+      `recipient(s); delivering to ${recipients.length}`
+    );
+  }
+
   if (recipients.length === 0) {
-    console.warn("[sendWeeklyReports] No super_admin recipients found");
+    console.warn("[sendWeeklyReports] No recipients after allow-list filter");
     return { sentTo: 0, generatedAt: new Date().toISOString() };
   }
 
@@ -186,20 +223,26 @@ function fallbackNarrative(reportData) {
 // ---------------------------------------------------------------------
 // Role + recipient lookups (Admin SDK).
 // ---------------------------------------------------------------------
-async function isSuperAdmin(uid) {
+async function ensureAdminLevel(uid) {
   try {
     const snap = await getFirestore().collection("users").doc(uid).get();
-    return snap.exists && snap.data()?.role === "super_admin";
+    const role = snap.exists ? snap.data()?.role : null;
+    return { allowed: ADMIN_LEVEL_ROLES.has(role), role };
   } catch (err) {
-    console.error("[sendWeeklyReports] super_admin check failed:", err);
-    return false;
+    console.error("[sendWeeklyReports] admin-level check failed:", err);
+    return { allowed: false, role: null };
   }
 }
 
-async function getSuperAdminEmails() {
+async function getAdminLevelEmails() {
+  // Firestore "in" queries cap at 30 values; we pass 9 — plenty of
+  // headroom. If ADMIN_LEVEL_ROLES ever grows past 30, chunk this into
+  // batched queries. Combining "in" (role) with "==" (approved) needs a
+  // composite index — add one in the Firebase console if the query errors.
   const snap = await getFirestore()
     .collection("users")
-    .where("role", "==", "super_admin")
+    .where("role", "in", Array.from(ADMIN_LEVEL_ROLES))
+    .where("approved", "==", true)
     .get();
 
   const seen = new Set();

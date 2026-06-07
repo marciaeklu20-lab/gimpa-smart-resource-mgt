@@ -63,3 +63,22 @@ export const MAINTENANCE_ROLES = [
   "Maintenance Admin",
   "Maintenance Staff"
 ];
+
+// Stage 4l: union of admin-level roles permitted to access the Reports
+// surface (manual trigger + recipient list for weekly emails). Excludes
+// Maintenance Staff (operational, not admin) and regular users.
+//
+// MUST stay in sync with the hardcoded ADMIN_LEVEL_ROLES set in
+// functions/src/sendWeeklyReports.js (Cloud Functions can't import from
+// the src/ tree).
+export const ADMIN_LEVEL_ROLES = [
+  "super_admin",
+  "Secretariat Admin",
+  "IT Officer",
+  "Administrative Officer",
+  "Higher Level Management",
+  "Facility/Estate Officer",
+  "Logistics Officer",
+  "Stores/Inventory Officer",
+  "Maintenance Admin"
+];

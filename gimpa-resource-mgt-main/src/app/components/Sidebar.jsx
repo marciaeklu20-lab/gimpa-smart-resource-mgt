@@ -18,9 +18,10 @@ import app from "@/firebase/config";
 import { subscribeBookings } from "@/app/workspace/resource-management/services/subscribeBookings";
 import { isUnread } from "@/app/workspace/resource-management/services/isUnread";
 
-import { PLATFORM_ADMINS, MAINTENANCE_ROLES } from "@/app/lib/roles";
+import { PLATFORM_ADMINS, MAINTENANCE_ROLES, ADMIN_LEVEL_ROLES } from "@/app/lib/roles";
 
 import { MdOutlineDashboard, MdNotificationsActive } from "react-icons/md";
+import { HiOutlineMail } from "react-icons/hi";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
 import { FaTools } from "react-icons/fa";
 import { GrResources } from "react-icons/gr";
@@ -190,6 +191,12 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
       : []),
 
     { name: "Analytics", icon: <BsMenuButtonWide size={20} /> },
+
+    // Stage 4l: weekly email reports surface — visible to all
+    // admin-level roles, not just platform admins.
+    ...(ADMIN_LEVEL_ROLES.includes(role)
+      ? [{ name: "Reports", icon: <HiOutlineMail size={20} /> }]
+      : []),
 
     // Admin Dashboard visible only to platform admins.
     ...(PLATFORM_ADMINS.includes(role)

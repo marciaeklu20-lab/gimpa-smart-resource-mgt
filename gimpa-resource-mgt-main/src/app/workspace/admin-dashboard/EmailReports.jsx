@@ -15,6 +15,8 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 
 import app from "@/firebase/config";
 
+import { ADMIN_LEVEL_ROLES } from "@/app/lib/roles";
+
 import "@/app/styles/admin-dashboard/EmailReports.css";
 
 const REGION = "europe-west1";
@@ -25,7 +27,10 @@ const formatTime = (iso) => {
   return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 };
 
-export default function EmailReports() {
+export default function EmailReports({ currentUser }) {
+
+  const role = currentUser?.role;
+  const isAuthorized = role && ADMIN_LEVEL_ROLES.includes(role);
 
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null); // { type, message }
@@ -52,7 +57,7 @@ export default function EmailReports() {
         const message =
           count > 0
             ? `Sent to ${count} recipient${count === 1 ? "" : "s"} at ${formatTime(generatedAt)}.`
-            : "Completed, but no super-admin recipients were found.";
+            : "Completed, but no admin-level recipients were found.";
         setResult({ type: count > 0 ? "success" : "warning", message });
         setHistory((prev) => [{ generatedAt, message }, ...prev].slice(0, 10));
       }
@@ -60,7 +65,7 @@ export default function EmailReports() {
       console.error("[EmailReports] send failed:", err);
       const code = err?.code || "";
       const message = code.includes("permission-denied")
-        ? "Only super-admins can send reports."
+        ? "Only admin-level roles can send reports."
         : code.includes("unauthenticated")
           ? "Your session has expired — please sign in again."
           : "Couldn't send the report. Please try again in a moment.";
@@ -70,15 +75,26 @@ export default function EmailReports() {
     }
   };
 
+  if (!isAuthorized) {
+    return (
+      <div className="email-reports-container">
+        <h2>Reports</h2>
+        <p className="email-reports-empty">
+          You don't have permission to access this surface.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="email-reports">
 
       <div className="email-reports-header">
         <h2 className="email-reports-title">Email Reports</h2>
         <p className="email-reports-subtitle">
-          Weekly digests for super-admins, sent automatically every Monday
-          at 09:00 UTC. Use the button below to send one now for a demo or
-          spot check.
+          Weekly digests for all admin-level users, sent automatically every
+          Monday at 09:00 UTC. Use the button below to send one now for a
+          demo or spot check.
         </p>
       </div>
 

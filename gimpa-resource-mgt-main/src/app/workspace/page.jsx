@@ -191,7 +191,11 @@ export default function WorkspacePage() {
           activeTab={activeSidebar}
           setActiveTab={(tab) => {
             setActiveSidebar(tab);
-            setActiveTab(tab === "Admin Dashboard" ? "Approvals" : "Campus Resources");
+            setActiveTab(
+              tab === "Admin Dashboard" ? "Approvals"
+              : tab === "Reports"        ? "Weekly Report"
+              : "Campus Resources"
+            );
           }}
         />
 
@@ -296,6 +300,13 @@ export default function WorkspacePage() {
               views internally; no top-level admin gate any more. */}
           {activeSidebar === "Analytics" && (
             <Analytics currentUser={currentUser} navigate={navigate} />
+          )}
+
+          {/* Stage 4l: Reports — dedicated surface for the weekly email
+              digest trigger + status. Visible to all ADMIN_LEVEL_ROLES
+              (gated by Sidebar; EmailReports re-checks the role too). */}
+          {activeSidebar === "Reports" && (
+            <EmailReports currentUser={currentUser} />
           )}
 
         </div>
