@@ -12,16 +12,22 @@
 //
 // Pure data shape returned (no SDK objects leak out):
 //   {
-//     period:     { start, end, days },
-//     totals:     { bookings, faults, supplyRequests, newSignups,
-//                   resolvedFaults, pendingFaults },
-//     topResources:  [{ assetCode, name, bookings, faults }],   // ≤5
-//     topFaultResources: [{ assetCode, name, faults }],          // ≤3
-//     topRequesters: [{ bookings }],                            // ≤5, no PII
-//     breakdowns: { bookingsByStatus, faultsBySeverity },
-//     supply:     { byStatus, topItems: [{ name, requests, quantity }] }, // ≤3
-//     assetConditions: { byCondition, attention: [{ assetCode, name,
-//                        condition }], attentionTotal },          // Stage 4l
+//     period:        { start, end, days },
+//     totals:        { bookings, faults, supplyRequests, newSignups,
+//                      resolvedFaults, pendingFaults },
+//     topResources:     [{ assetCode, name, bookings, faults }],   // ≤5
+//     topFaultResources:[{ assetCode, name, bookings, faults }],   // ≤3
+//     topRequesters:    [{ bookings }],                            // ≤5, no PII
+//     breakdowns:    { bookingsByStatus, faultsBySeverity },
+//     supply:        {
+//                      byStatus: { pending, approved, fulfilled, denied, cancelled },
+//                      topItems: [{ name, requests, quantity }]    // ≤3
+//                    },
+//     assetConditions: {
+//                      byCondition: { excellent, good, fair, poor, out_of_service },
+//                      attention: [{ assetCode, name, condition }], // ≤20, worst first
+//                      attentionTotal: number
+//                    },
 //     notableEvents: [string]
 //   }
 //
@@ -42,14 +48,6 @@ if (!getApps().length) {
 
 const RESOLVED_FAULT_STATUSES = new Set(["resolved", "closed"]);
 const FAULT_SEVERITIES = ["critical", "major", "minor", "cosmetic"];
-
-// Stage 4l maintenance variant: resource condition enum (mirrors
-// src/app/lib/resourceMeta.js) + the subset that warrants attention in
-// the maintenance brief.
-const CONDITIONS = ["excellent", "good", "fair", "poor", "out_of_service"];
-const ATTENTION_CONDITIONS = new Set(["fair", "poor", "out_of_service"]);
-// Cap the attention list so a large fleet can't bloat the email.
-const ATTENTION_LIST_CAP = 20;
 
 // Coerce a Firestore Timestamp / Date / millis to millis, or null.
 const toMillis = (v) => {
@@ -129,59 +127,85 @@ export async function buildReportData({ periodDays = 7 } = {}) {
   const pendingFaults = faultsTotal - resolvedFaults;
 
   // --- supply requests (status breakdown + most-requested items) ----
-  // Stage 4l maintenance variant. items[] carries { resourceName,
-  // quantityRequested } per createSupplyRequest.js.
-  const supplyByStatus = {};
-  const supplyItemTally = new Map(); // resourceName -> { name, requests, quantity }
+  // Stage 4l maintenance variant. byStatus tracks supply requests
+  // CREATED in the period (time-windowed, like the other totals).
+  const supplyByStatus = {
+    pending: 0, approved: 0, fulfilled: 0, denied: 0, cancelled: 0
+  };
+  const supplyItemTally = new Map();  // name -> { name, requests, quantity }
 
   supplySnap.forEach((doc) => {
     const s = doc.data() || {};
     const status = s.status || "pending";
     supplyByStatus[status] = (supplyByStatus[status] || 0) + 1;
 
-    const items = Array.isArray(s.items) ? s.items : [];
-    for (const it of items) {
-      const name = it?.resourceName;
+    // Be tolerant of schema variants: items may be an array of
+    // { name, quantity } pairs, or the doc may carry a single
+    // itemName + quantity at the top level.
+    const items = Array.isArray(s.items)
+      ? s.items
+      : (s.itemName
+          ? [{ name: s.itemName, quantity: s.quantity ?? 1 }]
+          : []);
+
+    for (const item of items) {
+      const name = item.name || item.itemName;
+      const qty = Number(item.quantity) || 1;
       if (!name) continue;
-      if (!supplyItemTally.has(name)) {
-        supplyItemTally.set(name, { name, requests: 0, quantity: 0 });
-      }
-      const entry = supplyItemTally.get(name);
-      entry.requests += 1;
-      const qty = Number(it.quantityRequested);
-      if (Number.isFinite(qty)) entry.quantity += qty;
+      const existing = supplyItemTally.get(name)
+        || { name, requests: 0, quantity: 0 };
+      existing.requests += 1;
+      existing.quantity += qty;
+      supplyItemTally.set(name, existing);
     }
   });
 
   const topSupplyItems = Array.from(supplyItemTally.values())
-    .sort((a, b) => (b.quantity - a.quantity) || (b.requests - a.requests))
+    .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 3);
 
   // --- asset condition snapshot (current state, all resources) ------
   // Stage 4l maintenance variant. Not time-windowed: reflects the fleet
   // as it stands now, not just resources touched this period.
-  const conditionCounts = {};
-  for (const c of CONDITIONS) conditionCounts[c] = 0;
-  const attention = [];
+  const CONDITION_PRIORITY = {
+    out_of_service: 0,
+    poor: 1,
+    fair: 2,
+    good: 3,
+    excellent: 4
+  };
+  const ATTENTION_CONDITIONS = new Set(["fair", "poor", "out_of_service"]);
+  const ATTENTION_CAP = 20;
+
+  const conditionCounts = {
+    excellent: 0, good: 0, fair: 0, poor: 0, out_of_service: 0
+  };
+  const attentionList = [];
 
   resourcesSnap.forEach((doc) => {
     const r = doc.data() || {};
-    const condition = CONDITIONS.includes(r.condition) ? r.condition : "good";
-    conditionCounts[condition] += 1;
+    const condition = r.condition || "good";
+    if (conditionCounts[condition] !== undefined) {
+      conditionCounts[condition] += 1;
+    } else {
+      conditionCounts[condition] = 1;   // unknown condition — count anyway
+    }
+
     if (ATTENTION_CONDITIONS.has(condition)) {
-      attention.push({
-        assetCode: doc.id,
-        name: r.resourceName || doc.id,
+      attentionList.push({
+        assetCode: r.assetCode || doc.id,
+        name: r.resourceName || r.name || r.assetCode || doc.id,
         condition
       });
     }
   });
 
-  // Worst-condition first so the email leads with out_of_service.
-  const conditionRank = { out_of_service: 0, poor: 1, fair: 2 };
-  attention.sort(
-    (a, b) => (conditionRank[a.condition] ?? 3) - (conditionRank[b.condition] ?? 3)
+  // Sort worst-first, then take the cap; preserve the true count.
+  attentionList.sort(
+    (a, b) => CONDITION_PRIORITY[a.condition] - CONDITION_PRIORITY[b.condition]
   );
+  const attentionTotal = attentionList.length;
+  const attention = attentionList.slice(0, ATTENTION_CAP);
 
   // --- top resources (by combined activity) -------------------------
   const topResources = Array.from(resourceTally.values())
@@ -194,8 +218,7 @@ export async function buildReportData({ periodDays = 7 } = {}) {
   const topFaultResources = Array.from(resourceTally.values())
     .filter((r) => r.faults > 0)
     .sort((a, b) => b.faults - a.faults)
-    .slice(0, 3)
-    .map((r) => ({ assetCode: r.assetCode, name: r.name, faults: r.faults }));
+    .slice(0, 3);
 
   // --- top requesters (COUNT ONLY — no id, name, or email) ----------
   const topRequesters = Array.from(requesterTally.values())
@@ -228,22 +251,23 @@ export async function buildReportData({ periodDays = 7 } = {}) {
     },
     totals,
     topResources,
-    topFaultResources,
     topRequesters,
     breakdowns: {
       bookingsByStatus,
       faultsBySeverity
     },
+    notableEvents,
+    // Stage 4l data-layer additions for the maintenance variant
+    topFaultResources,
     supply: {
       byStatus: supplyByStatus,
       topItems: topSupplyItems
     },
     assetConditions: {
       byCondition: conditionCounts,
-      attention: attention.slice(0, ATTENTION_LIST_CAP),
-      attentionTotal: attention.length
-    },
-    notableEvents
+      attention,
+      attentionTotal
+    }
   };
 }
 
