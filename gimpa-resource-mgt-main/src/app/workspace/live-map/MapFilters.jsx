@@ -1,16 +1,46 @@
 "use client";
 
-// Stage 4o Phase 1 — left-hand filter sidebar for the Live Map.
+// Stage 4o Phase 1 (redesign) — left-hand filter sidebar for the map.
 //
-// Pure controlled component: owns no state, drives the `filters` object
-// held by LiveMapView. Filters are applied client-side against the live
-// resources snapshot.
+// Pure controlled component: owns no state beyond the Autocomplete ref,
+// drives the `filters` object held by LiveMapView. Category + condition
+// filters apply client-side against the live resources snapshot.
+//
+// The free-text "search resources by name/code" box is replaced by a
+// Google Places Autocomplete: selecting a place bubbles its coordinates
+// up via onPlaceSelected, and LiveMapView pans the map there. It is a
+// geographic locator, not a resource filter.
+
+import { useRef } from "react";
+
+import { Autocomplete } from "@react-google-maps/api";
 
 import { CONDITIONS } from "@/app/lib/resourceMeta";
 
 const EMPTY_FILTERS = { search: "", categories: [], condition: "all" };
 
-export default function MapFilters({ categories, filters, setFilters, shown, total }) {
+// Bias suggestions toward GIMPA Greenhill (Achimota) + ~2km around it.
+// Built lazily (only when google is loaded) so we never touch the global
+// before the Maps script is ready.
+function gimpaBounds() {
+  if (typeof window === "undefined" || !window.google) return undefined;
+  return new window.google.maps.LatLngBounds(
+    new window.google.maps.LatLng(5.640, -0.205),
+    new window.google.maps.LatLng(5.660, -0.180)
+  );
+}
+
+export default function MapFilters({
+  categories,
+  filters,
+  setFilters,
+  shown,
+  total,
+  mapsReady = false,
+  onPlaceSelected
+}) {
+
+  const autocompleteRef = useRef(null);
 
   const toggleCategory = (cat) => {
     setFilters((f) => {
@@ -24,6 +54,18 @@ export default function MapFilters({ categories, filters, setFilters, shown, tot
     });
   };
 
+  const handlePlaceChanged = () => {
+    const place = autocompleteRef.current?.getPlace();
+    const loc = place?.geometry?.location;
+    if (loc && onPlaceSelected) {
+      onPlaceSelected({
+        lat: loc.lat(),
+        lng: loc.lng(),
+        name: place.name || place.formatted_address || ""
+      });
+    }
+  };
+
   return (
     <aside className="live-map-filters">
 
@@ -31,16 +73,32 @@ export default function MapFilters({ categories, filters, setFilters, shown, tot
 
       <div className="live-map-filter-group">
         <label className="live-map-filter-label" htmlFor="live-map-search">
-          Search
+          Find a location
         </label>
-        <input
-          id="live-map-search"
-          type="text"
-          className="live-map-search-input"
-          placeholder="Asset code or name"
-          value={filters.search}
-          onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-        />
+        {mapsReady ? (
+          <Autocomplete
+            onLoad={(ac) => { autocompleteRef.current = ac; }}
+            onPlaceChanged={handlePlaceChanged}
+            options={{
+              bounds: gimpaBounds(),
+              strictBounds: false,
+              types: ["establishment", "geocode"]
+            }}
+          >
+            <input
+              type="text"
+              className="map-place-search"
+              placeholder="Search GIMPA buildings, locations…"
+            />
+          </Autocomplete>
+        ) : (
+          <input
+            type="text"
+            className="map-place-search"
+            placeholder="Loading place search…"
+            disabled
+          />
+        )}
       </div>
 
       <div className="live-map-filter-group">

@@ -201,3 +201,140 @@
   background: #fee2e2;
   border-radius: 4px;
 }
+
+/* ===================================================================
+   Stage 4o Phase 1 (redesign) — asset-focused full-page map route
+   (/workspace/map/[assetCode]). This view lives OUTSIDE the /workspace
+   tab shell, so it owns the whole viewport: a sticky header + the map
+   filling the rest.
+   =================================================================== */
+
+.asset-focused-map-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;            /* full-page route — no workspace chrome */
+  background: #fff;
+}
+
+.map-page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  padding: 12px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.map-back-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #111827;
+  transition: background 0.15s ease;
+}
+
+.map-back-btn:hover {
+  background: #f3f4f6;
+}
+
+.map-page-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.map-page-title h2 {
+  margin: 0;
+  font-size: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-page-code {
+  font-family: monospace;
+  font-size: 13px;
+  background: #e0e7ff;
+  color: #4338ca;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Inside the full-page route the map container fills the space the
+   header leaves, rather than the fixed calc() height it uses as a
+   /workspace tab. The border/radius would double up on the page edge,
+   so drop them here. */
+.asset-focused-map-page .live-map-container {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  border: none;
+  border-radius: 0;
+}
+
+/* Loading / not-found / error chrome for the route wrapper. */
+.map-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+.map-page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 1rem;
+}
+
+/* Focused-asset marker emphasis. NOTE: a <Marker> icon is canvas-drawn,
+   not a DOM node, so this class can't attach to it — the live cue is the
+   larger scale + Google BOUNCE animation set in MapMarker.jsx. Kept for
+   any future DOM-overlay marker implementation. */
+.focused-marker {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.3); }
+}
+
+/* Places Autocomplete input (replaces the old asset text search). */
+.map-place-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  color: #111827;
+  background: #fff;
+}
+
+.map-place-search:focus {
+  outline: none;
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+}
+
+.map-place-search:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* The Google Places dropdown (.pac-container) renders in a portal at the
+   document root; lift it above the map's controls + our footer banner. */
+.pac-container {
+  z-index: 10000;
+}

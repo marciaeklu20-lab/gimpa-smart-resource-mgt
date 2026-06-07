@@ -21,7 +21,7 @@ import { isUnread } from "@/app/workspace/resource-management/services/isUnread"
 import { PLATFORM_ADMINS, MAINTENANCE_ROLES, ADMIN_LEVEL_ROLES } from "@/app/lib/roles";
 
 import { MdOutlineDashboard, MdNotificationsActive } from "react-icons/md";
-import { HiOutlineMail, HiOutlineMap } from "react-icons/hi";
+import { HiOutlineMail } from "react-icons/hi";
 import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-icons/bs";
 import { FaTools } from "react-icons/fa";
 import { GrResources } from "react-icons/gr";
@@ -183,10 +183,6 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
   const features = [
     { name: "Dashboard", icon: <MdOutlineDashboard size={20} /> },
     { name: "Resource Management", icon: <GrResources size={20} /> },
-
-    // Stage 4o Phase 1: Live Map — informational, visible to ALL approved
-    // roles (no access restriction in Phase 1).
-    { name: "Live Map", icon: <HiOutlineMap size={20} /> },
 
     { name: "Chat", icon: <BsChatLeftDots size={20} /> },
 

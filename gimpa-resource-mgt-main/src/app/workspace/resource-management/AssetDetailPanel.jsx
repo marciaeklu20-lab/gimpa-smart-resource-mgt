@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
+
+import { HiOutlineMap } from "react-icons/hi";
 
 import {
   getFirestore,
@@ -251,6 +254,20 @@ export default function AssetDetailPanel({
           >
             Book Resource
           </button>
+        )}
+
+        {/* Stage 4o Phase 1: View on Map — opens the asset-focused map
+            route at /workspace/map/<assetCode>. A Link (not a button) so
+            it's a real navigation the App Router can cache + restore on
+            Back. Open to anyone who can see the asset. */}
+        {selectedAsset.assetCode && (
+          <Link
+            href={`/workspace/map/${encodeURIComponent(selectedAsset.assetCode)}`}
+            className="asset-detail-view-map-btn"
+          >
+            <HiOutlineMap size={16} />
+            <span>View on Map</span>
+          </Link>
         )}
 
         {/* Report Fault — open to ANY signed-in user (Stage 4d). The

@@ -13,7 +13,7 @@
 // check-in, booking/transfer/maintenance transitions) ships in Phase 2
 // and Phase 3.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { GoogleMap, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 
@@ -32,6 +32,11 @@ import "@/app/styles/live-map/LiveMap.css";
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
+// Module-level so the array identity is stable across renders —
+// useJsApiLoader warns ("LoadScript has been reloaded unintentionally")
+// if libraries is a fresh array each render.
+const MAPS_LIBRARIES = ["places"];
+
 const MAP_CONTAINER_STYLE = { width: "100%", height: "100%" };
 const MAP_OPTIONS = {
   mapTypeId: "hybrid", // satellite imagery + road/label overlay
@@ -40,23 +45,36 @@ const MAP_OPTIONS = {
   mapTypeControl: true
 };
 
+const FOCUSED_ZOOM = 19; // closer than DEFAULT_ZOOM for the per-asset view
+
 const DEFAULT_FILTERS = { search: "", categories: [], condition: "all" };
 
-export default function LiveMapView({ currentUser }) {
+export default function LiveMapView({ currentUser, focusedAsset }) {
 
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [subError, setSubError] = useState(null);
-  const [selected, setSelected] = useState(null); // resource for InfoWindow
+  // Pre-open the InfoWindow on the focused asset (if any) on mount.
+  const [selected, setSelected] = useState(focusedAsset || null);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  const mapRef = useRef(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: "gimpa-live-map",
-    googleMapsApiKey: API_KEY || ""
+    googleMapsApiKey: API_KEY || "",
+    libraries: MAPS_LIBRARIES
   });
 
+  // Initial centre/zoom: tight on the focused asset's building when this
+  // is the per-asset route, otherwise the whole-campus default.
+  const initialCenter = focusedAsset
+    ? buildingCoordsForResource(focusedAsset)
+    : GIMPA_CENTER;
+  const initialZoom = focusedAsset ? FOCUSED_ZOOM : DEFAULT_ZOOM;
+
   // Live subscription — unsubscribes on unmount (no leak when the user
-  // navigates to another sidebar surface).
+  // navigates away from the map route).
   useEffect(() => {
     const unsubscribe = subscribeResources(
       (list) => {
@@ -69,6 +87,24 @@ export default function LiveMapView({ currentUser }) {
       }
     );
     return () => unsubscribe && unsubscribe();
+  }, []);
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  const onMapUnmount = useCallback(() => {
+    mapRef.current = null;
+  }, []);
+
+  // Places Autocomplete (in MapFilters) bubbles a selected location up
+  // here; pan + zoom the map to it. Pure camera move — does not touch
+  // the resource markers or the focused asset.
+  const handlePlaceSelected = useCallback(({ lat, lng }) => {
+    if (mapRef.current && Number.isFinite(lat) && Number.isFinite(lng)) {
+      mapRef.current.panTo({ lat, lng });
+      mapRef.current.setZoom(18);
+    }
   }, []);
 
   const categories = useMemo(
@@ -101,11 +137,14 @@ export default function LiveMapView({ currentUser }) {
   }, [resources, filters]);
 
   // Keep the open InfoWindow in sync with live data (e.g. a condition
-  // change) and close it if its resource is filtered out.
+  // change). Resolve against the FULL resource list — not the filtered
+  // one — so the pre-opened focused-asset InfoWindow stays put even when
+  // the filters would hide it. Falls back to the selected object so the
+  // window shows immediately on mount, before the first snapshot lands.
   const selectedLive = useMemo(() => {
     if (!selected) return null;
-    return filteredResources.find((r) => r.id === selected.id) || null;
-  }, [selected, filteredResources]);
+    return resources.find((r) => r.id === selected.id) || selected;
+  }, [selected, resources]);
 
   // --- Missing API key: clear error state, never a crash -------------
   if (!API_KEY) {
@@ -142,6 +181,8 @@ export default function LiveMapView({ currentUser }) {
         setFilters={setFilters}
         shown={filteredResources.length}
         total={resources.length}
+        mapsReady={isLoaded}
+        onPlaceSelected={handlePlaceSelected}
       />
 
       <div className="live-map-canvas">
@@ -159,15 +200,18 @@ export default function LiveMapView({ currentUser }) {
         {isLoaded && (
           <GoogleMap
             mapContainerStyle={MAP_CONTAINER_STYLE}
-            center={GIMPA_CENTER}
-            zoom={DEFAULT_ZOOM}
+            center={initialCenter}
+            zoom={initialZoom}
             options={MAP_OPTIONS}
+            onLoad={onMapLoad}
+            onUnmount={onMapUnmount}
             onClick={() => setSelected(null)}
           >
             {filteredResources.map((resource) => (
               <MapMarker
                 key={resource.id}
                 resource={resource}
+                focused={!!focusedAsset && resource.id === focusedAsset.id}
                 onClick={setSelected}
               />
             ))}

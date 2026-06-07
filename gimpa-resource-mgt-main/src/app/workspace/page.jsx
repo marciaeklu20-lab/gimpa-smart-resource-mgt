@@ -16,7 +16,6 @@ import EmailReports from "@/app/workspace/admin-dashboard/EmailReports";
 import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
 import Maintenance from "@/app/workspace/maintenance/Maintenance";
-import LiveMapView from "@/app/workspace/live-map/LiveMapView";
 import SupplyRequestsList from "@/app/workspace/maintenance/supplyRequest/SupplyRequestsList";
 import AiBotButton from "@/app/workspace/ai-bot/AiBotButton";
 
@@ -195,7 +194,6 @@ export default function WorkspacePage() {
             setActiveTab(
               tab === "Admin Dashboard" ? "Approvals"
               : tab === "Reports"        ? "Weekly Report"
-              : tab === "Live Map"       ? "Map"
               : "Campus Resources"
             );
           }}
@@ -260,14 +258,6 @@ export default function WorkspacePage() {
           {activeSidebar === "Resource Management" && activeTab === "Supply Requests" && (
             <SupplyRequestsList navigate={navigate} />
           )}
-
-          {/* LIVE MAP — Stage 4o Phase 1: all resources at their home
-              locations, live Firestore subscription. Visible to all
-              approved roles (gated only by Sidebar visibility). */}
-          {activeSidebar === "Live Map" && (
-            <LiveMapView currentUser={currentUser} />
-          )}
-
 
           {/* ADMIN DASHBOARD TABS */}
         
