@@ -53,6 +53,12 @@ const DEMO_RECIPIENT_ALLOWLIST = new Set([
   "marcia.ea.geal@gmail.com"
 ]);
 
+// Stage 4l follow-up: Maintenance Admin recipients receive a
+// maintenance-scoped report variant; all other admin-level roles get the
+// full executive report. Used to select both the Groq narrative prompt
+// and the rendered email template.
+const MAINTENANCE_FOCUSED_ROLES = new Set(["Maintenance Admin"]);
+
 // Shared base options for both entry points.
 const COMMON_OPTS = {
   region: "europe-west1",
@@ -129,49 +135,92 @@ async function runWeeklyReport({ trigger }) {
     };
   }
 
-  const narrative = await generateNarrative(reportData);
-  const { html, text, subject } = renderReportEmail(reportData, narrative);
+  // The metrics dataset is generated once above (same data for both
+  // variants); only the narrative + rendered template differ by variant.
 
+  // Group recipients by template variant, applying BOTH the role filter
+  // and the demo-mode allow-list so the sandbox-safe behaviour is kept.
   const allRecipients = await getAdminLevelEmails();
-  const recipients = allRecipients.filter((e) =>
-    DEMO_RECIPIENT_ALLOWLIST.has(e)
+
+  const maintRecipients = allRecipients.filter((r) =>
+    MAINTENANCE_FOCUSED_ROLES.has(r.role) &&
+    DEMO_RECIPIENT_ALLOWLIST.has(r.email)
   );
-  const skipped = allRecipients.length - recipients.length;
+  const fullRecipients = allRecipients.filter((r) =>
+    !MAINTENANCE_FOCUSED_ROLES.has(r.role) &&
+    DEMO_RECIPIENT_ALLOWLIST.has(r.email)
+  );
+
+  const totalAdmins = allRecipients.length;
+  const totalDelivered = maintRecipients.length + fullRecipients.length;
+  const skipped = totalAdmins - totalDelivered;
   if (skipped > 0) {
     console.info(
       `[sendWeeklyReports] Demo-mode allow-list filtered ${skipped} ` +
-      `recipient(s); delivering to ${recipients.length}`
+      `recipient(s); delivering to ${totalDelivered} (` +
+      `${maintRecipients.length} maintenance, ${fullRecipients.length} full)`
     );
   }
 
-  if (recipients.length === 0) {
+  if (totalDelivered === 0) {
     console.warn("[sendWeeklyReports] No recipients after allow-list filter");
     return { sentTo: 0, generatedAt: new Date().toISOString() };
   }
 
   const resend = new Resend(RESEND_API_KEY.value());
-  const result = await resend.emails.send({
-    from: "GIMPA Resource Management <onboarding@resend.dev>",
-    to: recipients,
-    subject,
-    html,
-    text,
-    tags: [
-      { name: "kind", value: "weekly-report" },
-      { name: "trigger", value: trigger }
-    ]
-  });
+  const sent = { maintenance: 0, full: 0 };
 
-  // Resend returns { data, error } rather than throwing on API/validation
-  // failures — surface a non-null error as a failed send.
-  if (result?.error) {
-    console.error("[sendWeeklyReports] Resend rejected the send:", result.error);
-    throw new HttpsError("internal", "Email provider rejected the report");
+  if (maintRecipients.length > 0) {
+    const narrative = await generateNarrative(reportData, "maintenance");
+    const { html, text, subject } = renderReportEmail(
+      reportData, narrative, "maintenance"
+    );
+    const result = await resend.emails.send({
+      from: "GIMPA Resource Management <onboarding@resend.dev>",
+      to: maintRecipients.map((r) => r.email),
+      subject, html, text,
+      tags: [
+        { name: "kind", value: "weekly-report" },
+        { name: "variant", value: "maintenance" },
+        { name: "trigger", value: trigger }
+      ]
+    });
+    if (result?.error) {
+      console.error("[sendWeeklyReports] Resend rejected the maintenance send:", result.error);
+      throw new HttpsError("internal", "Email provider rejected the report");
+    }
+    sent.maintenance = maintRecipients.length;
   }
 
-  console.info(`[sendWeeklyReports] Sent to ${recipients.length} (${trigger})`);
+  if (fullRecipients.length > 0) {
+    const narrative = await generateNarrative(reportData, "full");
+    const { html, text, subject } = renderReportEmail(
+      reportData, narrative, "full"
+    );
+    const result = await resend.emails.send({
+      from: "GIMPA Resource Management <onboarding@resend.dev>",
+      to: fullRecipients.map((r) => r.email),
+      subject, html, text,
+      tags: [
+        { name: "kind", value: "weekly-report" },
+        { name: "variant", value: "full" },
+        { name: "trigger", value: trigger }
+      ]
+    });
+    if (result?.error) {
+      console.error("[sendWeeklyReports] Resend rejected the full send:", result.error);
+      throw new HttpsError("internal", "Email provider rejected the report");
+    }
+    sent.full = fullRecipients.length;
+  }
+
+  console.info(
+    `[sendWeeklyReports] Sent: ${sent.full} full + ${sent.maintenance} ` +
+    `maintenance (trigger: ${trigger})`
+  );
   return {
-    sentTo: recipients.length,
+    sentTo: sent.full + sent.maintenance,
+    sentByVariant: sent,
     generatedAt: new Date().toISOString()
   };
 }
@@ -181,8 +230,8 @@ async function runWeeklyReport({ trigger }) {
 // model errors or returns junk — a narrative hiccup shouldn't block the
 // metrics email.
 // ---------------------------------------------------------------------
-async function generateNarrative(reportData) {
-  const prompt = buildReportPrompt(reportData);
+async function generateNarrative(reportData, variant = "full") {
+  const prompt = buildReportPrompt(reportData, variant);
 
   try {
     const groq = new Groq({ apiKey: GROQ_API_KEY.value() });
@@ -245,14 +294,23 @@ async function getAdminLevelEmails() {
     .where("approved", "==", true)
     .get();
 
+  // Returns { email, role } pairs — the role drives template variant
+  // selection in runWeeklyReport (maintenance vs full).
   const seen = new Set();
-  const emails = [];
+  const recipients = [];
   snap.forEach((doc) => {
-    const email = doc.data()?.email;
-    if (typeof email === "string" && email.includes("@") && !seen.has(email)) {
+    const data = doc.data() || {};
+    const email = data.email;
+    const role = data.role;
+    if (
+      typeof email === "string" &&
+      email.includes("@") &&
+      typeof role === "string" &&
+      !seen.has(email)
+    ) {
       seen.add(email);
-      emails.push(email);
+      recipients.push({ email, role });
     }
   });
-  return emails;
+  return recipients;
 }

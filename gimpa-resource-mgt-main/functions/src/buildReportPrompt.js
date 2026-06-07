@@ -12,7 +12,32 @@ const SCHEMA_BLOCK = `
 }
 `.trim();
 
-export function buildReportPrompt(reportData) {
+// System block for the maintenance-scoped variant (Maintenance Admin
+// recipients). Focuses on faults / supply / asset condition.
+const MAINTENANCE_SYSTEM_BLOCK = [
+  "You are writing the maintenance operations brief for the",
+  "Maintenance Admin at GIMPA. Focus exclusively on faults,",
+  "supply requests, and asset condition trends. Reference",
+  "specific numbers — resolution times, fault counts, top",
+  "issue-prone resources. Tone: operational, factual, no",
+  "marketing fluff. 2-3 short paragraphs, max 200 words total.",
+  "NEVER invent figures. NEVER include user names or emails."
+];
+
+// System block for the full executive variant (all other admin roles).
+const FULL_SYSTEM_BLOCK = [
+  "You are writing the executive summary section of a weekly",
+  "institutional report for senior administrators at GIMPA.",
+  "",
+  "Write 2-3 short paragraphs (max 200 words total). Reference",
+  "specific numbers and resources from the data. Tone: factual,",
+  "professional, no marketing fluff. NEVER invent figures — use only",
+  "the numbers present in the data below. NEVER include individual",
+  "user names or emails; refer to user activity in aggregate counts",
+  "only."
+];
+
+export function buildReportPrompt(reportData, variant = "full") {
   const data = reportData || {};
   const period = data.period || {};
 
@@ -21,16 +46,11 @@ export function buildReportPrompt(reportData) {
       ? `Reporting period: ${period.start} to ${period.end} (${period.days || 7} days).`
       : "Reporting period: the past week.";
 
+  const systemBlock =
+    variant === "maintenance" ? MAINTENANCE_SYSTEM_BLOCK : FULL_SYSTEM_BLOCK;
+
   return [
-    "You are writing the executive summary section of a weekly",
-    "institutional report for senior administrators at GIMPA.",
-    "",
-    "Write 2-3 short paragraphs (max 200 words total). Reference",
-    "specific numbers and resources from the data. Tone: factual,",
-    "professional, no marketing fluff. NEVER invent figures — use only",
-    "the numbers present in the data below. NEVER include individual",
-    "user names or emails; refer to user activity in aggregate counts",
-    "only.",
+    ...systemBlock,
     "",
     periodLine,
     "",

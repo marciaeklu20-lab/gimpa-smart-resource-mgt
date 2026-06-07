@@ -32,6 +32,10 @@ export default function EmailReports({ currentUser }) {
   const role = currentUser?.role;
   const isAuthorized = role && ADMIN_LEVEL_ROLES.includes(role);
 
+  // Stage 4l follow-up: Maintenance Admins receive the maintenance-scoped
+  // report variant; the copy below reflects what they'll actually get.
+  const isMaintenanceFocused = role === "Maintenance Admin";
+
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null); // { type, message }
   const [history, setHistory] = useState([]);  // session-only log
@@ -92,9 +96,12 @@ export default function EmailReports({ currentUser }) {
       <div className="email-reports-header">
         <h2 className="email-reports-title">Email Reports</h2>
         <p className="email-reports-subtitle">
-          Weekly digests for all admin-level users, sent automatically every
-          Monday at 09:00 UTC. Use the button below to send one now for a
-          demo or spot check.
+          {isMaintenanceFocused
+            ? "Weekly maintenance digest covering faults, supply requests, " +
+              "and asset condition — sent every Monday at 09:00 UTC."
+            : "Weekly executive digest covering bookings, faults, supply, " +
+              "and signups — sent every Monday at 09:00 UTC."}
+          {" Click below to send a test report on demand."}
         </p>
       </div>
 
