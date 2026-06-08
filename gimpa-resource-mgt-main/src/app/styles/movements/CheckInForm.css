@@ -1,0 +1,139 @@
+/* Stage 4o Phase 2 — QR check-in card on the public scan page.
+   Sits below the read-only resource details; matches the card width and
+   typography of PublicResourceView (QrCode.css). */
+
+.checkin-card {
+  width: 100%;
+  max-width: 360px;
+  margin: 1.25rem auto 0;
+  padding: 1.25rem 1.5rem 1.5rem;
+  box-sizing: border-box;
+
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  text-align: left;
+}
+
+.checkin-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0b3c80;
+}
+
+.checkin-subtitle {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.checkin-label {
+  display: block;
+  margin: 0.75rem 0 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6b7280;
+}
+
+.checkin-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #9ca3af;
+}
+
+.checkin-input {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  box-sizing: border-box;
+
+  font-size: 0.9rem;
+  color: #111827;
+  background: #fff;
+
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.checkin-input:focus {
+  outline: none;
+  border-color: #4a6cf7;
+  box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.15);
+}
+
+.checkin-textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+  font-family: inherit;
+}
+
+.checkin-error {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.82rem;
+  color: #7f1d1d;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.checkin-submit {
+  width: 100%;
+  margin-top: 1.1rem;
+  padding: 0.7rem 1rem;
+
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: #0b3c80;
+
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.checkin-submit:hover:not(:disabled) {
+  background: #082f63;
+}
+
+.checkin-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success state */
+.checkin-success {
+  text-align: center;
+}
+
+.checkin-success h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  color: #15803d;
+}
+
+.checkin-success p {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: #374151;
+  line-height: 1.45;
+}
+
+.checkin-map-link {
+  display: inline-block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0b3c80;
+  text-decoration: none;
+}
+
+.checkin-map-link:hover {
+  text-decoration: underline;
+}

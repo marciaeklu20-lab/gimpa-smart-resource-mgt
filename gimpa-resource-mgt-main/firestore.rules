@@ -242,6 +242,17 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly(["lifecycleStatus", "condition", "updatedAt"])
         )
+        // Stage 4o Phase 2: any approved user can update ONLY the
+        // currentLocation field as part of the QR check-in flow. The
+        // hasOnly() guard stops this branch from touching name, cost,
+        // custodian, home location, etc. (NB: the production QR check-in
+        // writes via the checkInResource Cloud Function, which uses the
+        // Admin SDK and bypasses these rules — this branch covers direct
+        // client writes / future surfaces.)
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(["currentLocation"])
+        )
       );
 
       // Delete: platform admins OR the responsible resource manager.
@@ -359,6 +370,29 @@ service cloud.firestore {
         );
 
       allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // resourceMovements/{moveId}  (Stage 4o Phase 2)
+    //
+    // Append-only audit log of resource location transitions (home →
+    // checked-in, and Phase 3 booking/transfer/maintenance moves). One
+    // row per move, denormalised resourceName for display, role (not
+    // name) for PII-light audit context.
+    //
+    // Read:    any approved user — mirrors the parent /resources read
+    //          so anyone who can see a resource can see where it has
+    //          been. Drives the Movement History panel + map InfoWindow.
+    // Create/
+    // Update/
+    // Delete:  denied from clients. Movement rows are written by the
+    //          checkInResource Cloud Function (Admin SDK), which bypasses
+    //          these rules by design — keeping the audit log forgery-proof
+    //          from the client side.
+    // ---------------------------------------------------------------
+    match /resourceMovements/{moveId} {
+      allow read: if isApproved();
+      allow create, update, delete: if false;
     }
 
     // ---------------------------------------------------------------

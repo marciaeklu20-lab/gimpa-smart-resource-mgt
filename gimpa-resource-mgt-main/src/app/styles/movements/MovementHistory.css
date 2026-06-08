@@ -1,0 +1,94 @@
+/* Stage 4o Phase 2 — Movement History rows inside AssetDetailPanel.
+   Reuses the shared .history-section / .history-list / .history-item /
+   .history-time chrome (asset-master-detail.css); this file only styles
+   the movement-specific badge + transition line + note. */
+
+.movement-history-item .history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.movement-history-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.movement-transition {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.movement-history-role {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.movement-history-note {
+  margin-top: 2px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  color: #374151;
+  background: #f9fafb;
+  border-left: 3px solid #d1d5db;
+  border-radius: 0 6px 6px 0;
+}
+
+/* Source badges — colour-coded by movement origin. */
+.movement-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.movement-badge-home {
+  color: #374151;
+  background: #e5e7eb;
+}
+
+.movement-badge-qr {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.movement-badge-manual {
+  color: #6d28d9;
+  background: #ede9fe;
+}
+
+/* Phase 3 sources — styled now so the audit log is consistent the moment
+   those listeners start writing. */
+.movement-badge-booking {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.movement-badge-transfer {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.movement-badge-maintenance {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.movement-badge-supply {
+  color: #0e7490;
+  background: #cffafe;
+}
+
+.movement-badge-lifecycle {
+  color: #4338ca;
+  background: #e0e7ff;
+}
+
+.movement-badge-unknown {
+  color: #6b7280;
+  background: #f3f4f6;
+}

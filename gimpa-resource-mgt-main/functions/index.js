@@ -28,6 +28,13 @@
  *       Resend. The callable verifies super_admin role via a Firestore
  *       lookup. Both reuse the RESEND_API_KEY + GROQ_API_KEY secrets.
  *       Definition lives in src/sendWeeklyReports.js.
+ *   - checkInResource  (Stage 4o Phase 2)
+ *       Callable that records a resource's current location from the QR
+ *       scan page. Verifies the caller is an approved user, resolves the
+ *       chosen building to coordinates, and writes the move atomically
+ *       (resource.currentLocation + a resourceMovements audit row) via
+ *       the shared writeMovement helper. No secrets. Definition lives in
+ *       src/checkInResource.js.
  *
  * Secrets:
  *   - RESEND_API_KEY — the Resend API key, stored as a Firebase
@@ -74,6 +81,12 @@ export {
   sendWeeklyReportsScheduled,
   sendWeeklyReportNow
 } from "./src/sendWeeklyReports.js";
+
+// Stage 4o Phase 2 — QR check-in callable. Records a resource's current
+// location (currentLocation field + resourceMovements audit row) via the
+// shared writeMovement helper. Verifies the caller is approved server-
+// side. No new secrets.
+export { checkInResource } from "./src/checkInResource.js";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 

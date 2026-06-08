@@ -338,3 +338,34 @@
 .pac-container {
   z-index: 10000;
 }
+
+/* Stage 4o Phase 2 — "Currently at" line + source badge in the
+   InfoWindow. */
+.live-map-current {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.85rem;
+  color: #111827;
+  line-height: 1.4;
+}
+
+.live-map-current-label {
+  color: #6b7280;
+}
+
+.live-map-source-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.live-map-current-time {
+  color: #9ca3af;
+}

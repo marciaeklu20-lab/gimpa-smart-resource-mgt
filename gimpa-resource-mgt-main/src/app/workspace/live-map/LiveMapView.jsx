@@ -20,9 +20,20 @@ import { GoogleMap, InfoWindow, useJsApiLoader } from "@react-google-maps/api";
 import {
   GIMPA_CENTER,
   DEFAULT_ZOOM,
-  buildingCoordsForResource
+  resourceMapPosition
 } from "@/app/lib/gimpaBuildingCoordinates";
-import { conditionLabel, formatLocation } from "@/app/lib/resourceMeta";
+import { conditionLabel, formatLocation, relativeTime } from "@/app/lib/resourceMeta";
+
+// Stage 4o Phase 2: human label for a currentLocation.source value.
+const SOURCE_LABELS = {
+  home: "home location",
+  "qr-checkin": "QR check-in",
+  manual: "manual update"
+};
+
+function sourceLabel(source) {
+  return SOURCE_LABELS[source] || source || "home location";
+}
 
 import { subscribeResources } from "./subscribeResources";
 import MapMarker from "./MapMarker";
@@ -66,10 +77,10 @@ export default function LiveMapView({ currentUser, focusedAsset }) {
     libraries: MAPS_LIBRARIES
   });
 
-  // Initial centre/zoom: tight on the focused asset's building when this
-  // is the per-asset route, otherwise the whole-campus default.
+  // Initial centre/zoom: tight on the focused asset's CURRENT location
+  // when this is the per-asset route, otherwise the whole-campus default.
   const initialCenter = focusedAsset
-    ? buildingCoordsForResource(focusedAsset)
+    ? resourceMapPosition(focusedAsset)
     : GIMPA_CENTER;
   const initialZoom = focusedAsset ? FOCUSED_ZOOM : DEFAULT_ZOOM;
 
@@ -146,6 +157,13 @@ export default function LiveMapView({ currentUser, focusedAsset }) {
     return resources.find((r) => r.id === selected.id) || selected;
   }, [selected, resources]);
 
+  // Position + live-location metadata for the open InfoWindow. Shares the
+  // same helper the markers use, so the popup anchors exactly on its pin.
+  const selectedPos = useMemo(
+    () => (selectedLive ? resourceMapPosition(selectedLive) : null),
+    [selectedLive]
+  );
+
   // --- Missing API key: clear error state, never a crash -------------
   if (!API_KEY) {
     return (
@@ -216,13 +234,32 @@ export default function LiveMapView({ currentUser, focusedAsset }) {
               />
             ))}
 
-            {selectedLive && (
+            {selectedLive && selectedPos && (
               <InfoWindow
-                position={buildingCoordsForResource(selectedLive)}
+                position={{ lat: selectedPos.lat, lng: selectedPos.lng }}
                 onCloseClick={() => setSelected(null)}
               >
                 <div className="live-map-infowindow">
                   <h4>{selectedLive.resourceName || "Unnamed resource"}</h4>
+
+                  {/* Stage 4o Phase 2: live "currently at" line. Shows a
+                      source badge + relative time when the asset is away
+                      from home; a plain "at home location" otherwise. */}
+                  <div className="live-map-current">
+                    <span className="live-map-current-label">Currently at:</span>{" "}
+                    <strong>{selectedPos.buildingName}</strong>
+                    {!selectedPos.isHome && (
+                      <span className="live-map-source-badge">
+                        {sourceLabel(selectedPos.source)}
+                      </span>
+                    )}
+                    {selectedPos.updatedAt && (
+                      <span className="live-map-current-time">
+                        {" — "}{relativeTime(selectedPos.updatedAt, Date.now())}
+                      </span>
+                    )}
+                  </div>
+
                   <dl>
                     <dt>Asset code</dt>
                     <dd>{selectedLive.assetCode || selectedLive.id}</dd>
@@ -230,7 +267,7 @@ export default function LiveMapView({ currentUser, focusedAsset }) {
                     <dd>{selectedLive.category || "—"}</dd>
                     <dt>Condition</dt>
                     <dd>{conditionLabel(selectedLive.condition) || "—"}</dd>
-                    <dt>Location</dt>
+                    <dt>Home</dt>
                     <dd>{formatLocation(selectedLive.location)}</dd>
                     {selectedLive.capacity ? (
                       <>
@@ -246,9 +283,9 @@ export default function LiveMapView({ currentUser, focusedAsset }) {
         )}
 
         <div className="live-map-footer">
-          Locations shown reflect home assignments. Real-time movement
-          tracking ships in Phase 2 (QR check-in) and Phase 3
-          (booking/transfer/maintenance event listeners).
+          Pins show each asset&apos;s current location — updated live by QR
+          check-in (Phase 2). Booking, transfer and maintenance moves are
+          tracked automatically in Phase 3.
         </div>
 
       </div>

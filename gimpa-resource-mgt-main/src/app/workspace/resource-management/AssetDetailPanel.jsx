@@ -39,6 +39,7 @@ import { PLATFORM_ADMINS, RESOURCE_MANAGERS } from "@/app/lib/roles";
 
 import BookingForm from "./BookingForm";
 import QrCodeButton from "./qrCode/QrCodeButton";
+import MovementHistorySection from "./movementHistory/MovementHistorySection";
 
 // Stage 4h: lazy — TransferAssetModal pulls the staff picker + writeBatch
 // service when first opened. Keeps the AssetDetailPanel chunk lean for
@@ -458,6 +459,12 @@ export default function AssetDetailPanel({
               </>
             )}
           />
+
+          {/* Stage 4o Phase 2: Movement History — live location audit log
+              (QR check-ins now; booking/transfer/maintenance moves in
+              Phase 3). Self-contained: owns its own resourceMovements
+              subscription keyed on the asset code. */}
+          <MovementHistorySection assetCode={selectedAsset.assetCode || selectedAsset.id} />
 
         </div>
 

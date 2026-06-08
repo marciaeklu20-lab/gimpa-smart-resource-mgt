@@ -15,14 +15,17 @@
 import { useEffect, useState } from "react";
 
 import { doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
-import { db } from "@/firebase/config";
+import { db, auth } from "@/firebase/config";
 
 import {
   lifecycleLabel,
   conditionLabel,
   formatLocation
 } from "@/app/lib/resourceMeta";
+
+import CheckInForm from "./CheckInForm";
 
 import "@/app/styles/qr-code/QrCode.css";
 
@@ -31,6 +34,14 @@ export default function PublicResourceView({ assetCode }) {
   // status: "loading" | "ready" | "notfound" | "error"
   const [status, setStatus] = useState("loading");
   const [resource, setResource] = useState(null);
+
+  // Stage 4o Phase 2: detect auth so signed-in staff get the QR check-in
+  // form below the read-only details. Anonymous scanners see nothing
+  // extra. The Cloud Function re-checks approval, so this is UI-only.
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    return onAuthStateChanged(auth, (u) => setUser(u));
+  }, []);
 
   useEffect(() => {
     if (!assetCode) {
@@ -143,8 +154,15 @@ export default function PublicResourceView({ assetCode }) {
       )}
 
       <div className="public-resource-footer">
-        <a href="/login">Sign in to book or report a fault</a>
+        {user
+          ? <a href="/login">Manage this resource in the workspace</a>
+          : <a href="/login">Sign in to book, report a fault, or check in</a>}
       </div>
+
+      {/* Stage 4o Phase 2: QR check-in — only for signed-in users. */}
+      {user && (
+        <CheckInForm resource={resource} currentUser={user} />
+      )}
 
     </div>
   );

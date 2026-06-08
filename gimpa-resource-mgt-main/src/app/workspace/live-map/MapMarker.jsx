@@ -16,7 +16,7 @@
 
 import { Marker } from "@react-google-maps/api";
 
-import { buildingCoordsForResource } from "@/app/lib/gimpaBuildingCoordinates";
+import { resourceMapPosition } from "@/app/lib/gimpaBuildingCoordinates";
 
 // Mirrors the condition enum in src/app/lib/resourceMeta.js.
 const CONDITION_COLORS = {
@@ -33,7 +33,10 @@ const BASE_SCALE = 8;
 const FOCUSED_SCALE = 12; // 1.5× the base
 
 export default function MapMarker({ resource, focused = false, onClick }) {
-  const pos = buildingCoordsForResource(resource);
+  // Stage 4o Phase 2: plot at the live currentLocation when present, else
+  // the deterministic home position (shared helper keeps the InfoWindow
+  // anchored to the same point).
+  const pos = resourceMapPosition(resource);
   const color = CONDITION_COLORS[resource?.condition] || FALLBACK_COLOR;
 
   // window.google is guaranteed present — LiveMapView only renders

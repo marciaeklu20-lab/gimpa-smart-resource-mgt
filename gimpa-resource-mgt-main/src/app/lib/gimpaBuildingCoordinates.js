@@ -50,3 +50,35 @@ export function buildingCoordsForResource(resource) {
     isFallback: !BUILDING_COORDINATES[buildingName]
   };
 }
+
+// Stage 4o Phase 2 — the position a resource should plot at on the map.
+//
+// Prefers the live currentLocation (set by QR check-in / Phase 3
+// listeners) when it carries real coordinates; otherwise falls back to
+// the deterministic home position above. Returns the building label +
+// source so callers can show "Currently at: X" and a source badge.
+//
+// Shared by MapMarker (pin position) and LiveMapView (InfoWindow anchor)
+// so the marker and its popup never drift apart.
+export function resourceMapPosition(resource) {
+  const cur = resource?.currentLocation;
+  if (cur && Number.isFinite(cur.lat) && Number.isFinite(cur.lng)) {
+    return {
+      lat: cur.lat,
+      lng: cur.lng,
+      buildingName: cur.building || "Unknown building",
+      source: cur.source || "home",
+      updatedAt: cur.updatedAt || null,
+      isHome: (cur.source || "home") === "home"
+    };
+  }
+  const home = buildingCoordsForResource(resource);
+  return {
+    lat: home.lat,
+    lng: home.lng,
+    buildingName: home.buildingName,
+    source: "home",
+    updatedAt: null,
+    isHome: true
+  };
+}
