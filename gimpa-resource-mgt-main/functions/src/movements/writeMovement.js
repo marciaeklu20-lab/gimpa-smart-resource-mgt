@@ -3,11 +3,21 @@
 // Atomically (one batch) updates a resource's currentLocation and appends
 // a row to the resourceMovements audit collection. Used by the Phase 2 QR
 // check-in callable; Phase 3's booking / transfer / maintenance listeners
-// will reuse it with their own `source` values.
+// reuse it with their own `source` values.
 //
 // Runs under the Admin SDK (Cloud Functions), so it bypasses Firestore
 // rules — the resourceMovements collection is client-write-denied and
 // these writes are the only path that populates it.
+//
+// Stage 4o Phase 3 adds two optional params:
+//   - skipIfSameLocation: when true, a no-op move (the resource is already
+//     at toLocation.building) is suppressed — returns null, writes nothing.
+//     The automatic listeners pass true so they don't spam the audit log;
+//     the manual QR check-in leaves it false (a deliberate check-in should
+//     always be recorded, even "still here").
+//   - additionalUpdates: extra { ref, data } writes folded into the SAME
+//     batch as the resource update + audit row, so e.g. a booking's
+//     locationTransitionState advances atomically with the move.
 
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -31,8 +41,23 @@ export async function writeMovement({
   source,
   triggeredBy,
   triggeredByRole,
-  note = null
+  note = null,
+  skipIfSameLocation = false,
+  additionalUpdates = []
 }) {
+  // Phase 3 no-op guard: if the resource is already at the target building,
+  // the move would be audit-log noise. Skip the whole batch (including any
+  // additionalUpdates — the caller's state-machine advance is also skipped,
+  // which is correct: nothing moved, so the booking shouldn't flip to
+  // "started"/"returned" off the back of a phantom move). Building-level
+  // comparison only — Phase 3 movements are building-granular.
+  if (
+    skipIfSameLocation &&
+    resource.currentLocation?.building === toLocation.building
+  ) {
+    return null;
+  }
+
   const batch = db.batch();
   const now = FieldValue.serverTimestamp();
 
@@ -70,6 +95,15 @@ export async function writeMovement({
     triggeredAt: now,
     note: note || null
   });
+
+  // 3. Phase 3: fold in any caller-supplied writes (e.g. advancing a
+  //    booking's locationTransitionState) so they commit atomically with
+  //    the move. Each entry is { ref, data } and is applied as an update.
+  for (const op of additionalUpdates) {
+    if (op?.ref && op?.data) {
+      batch.update(op.ref, op.data);
+    }
+  }
 
   await batch.commit();
   return moveRef.id;

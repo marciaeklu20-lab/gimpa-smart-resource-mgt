@@ -44,13 +44,23 @@ export const createBooking = async ({
   user,
   purpose,
   startDate,
-  endDate
+  endDate,
+  bookingLocation
 }) => {
 
   // Reject zero-length / inverted ranges before the conflict query —
   // it's cheaper and the error message is clearer.
   if (!(startDate < endDate)) {
     throw new Error("INVALID_DATE_RANGE");
+  }
+
+  // Stage 4o Phase 3 — where the resource will physically be during the
+  // booking. Required so the onBookingTransitions listener has a target
+  // building to move the asset to (and back from). Must be a real building
+  // name; the form constrains it to the BUILDING_COORDINATES keys.
+  const bookingBuilding = (bookingLocation || "").trim();
+  if (!bookingBuilding) {
+    throw new Error("BOOKING_LOCATION_REQUIRED");
   }
 
   // Re-fetch the resource so the lifecycle gate runs against canonical
@@ -143,6 +153,15 @@ export const createBooking = async ({
     purpose,
     startDate,
     endDate,
+
+    // Stage 4o Phase 3 — movement-tracking fields. bookingLocation is the
+    // building the asset is reserved into; locationTransitionState is the
+    // start→return state machine the scheduled listener advances.
+    bookingLocation: {
+      campus: "Main Campus", // hardcoded for the GIMPA Greenhill demo scope
+      building: bookingBuilding
+    },
+    locationTransitionState: "none",
 
     status: "pending",
 

@@ -27,17 +27,25 @@ import "@/app/styles/movements/MovementHistory.css";
 
 const db = getFirestore(app);
 
-// Colour-coded source badges. Phase 2 emits "home" + "qr-checkin"; the
-// rest are reserved for the Phase 3 event listeners.
+// Colour-coded source badges. Phase 2 emits "home" + "qr-checkin"; Phase 3
+// adds the event-listener sources below. Namespaced sources like
+// "booking:BKG-12" / "fault:F-9" / "lifecycle:retired" are matched on the
+// prefix before the colon (see sourceMeta).
 const SOURCE_META = {
-  home:         { label: "Home",         className: "movement-badge-home" },
-  "qr-checkin": { label: "QR check-in",  className: "movement-badge-qr" },
-  manual:       { label: "Manual",       className: "movement-badge-manual" },
-  booking:      { label: "Booking",      className: "movement-badge-booking" },
-  transfer:     { label: "Transfer",     className: "movement-badge-transfer" },
-  maintenance:  { label: "Maintenance",  className: "movement-badge-maintenance" },
-  supply:       { label: "Supply",       className: "movement-badge-supply" },
-  lifecycle:    { label: "Lifecycle",    className: "movement-badge-lifecycle" }
+  home:                 { label: "Initial",             className: "movement-badge-home" },
+  "qr-checkin":         { label: "QR Check-in",         className: "movement-badge-qr" },
+  manual:               { label: "Manual",              className: "movement-badge-manual" },
+
+  // Phase 3 event sources.
+  booking:              { label: "Booking start",       className: "movement-badge-booking" },
+  "booking-return":     { label: "Booking return",      className: "movement-badge-booking" },
+  fault:                { label: "Fault → Maintenance", className: "movement-badge-fault" },
+  "maintenance-return": { label: "Maintenance → Home",  className: "movement-badge-maintenance-return" },
+  transfer:             { label: "Transfer",            className: "movement-badge-transfer" },
+  lifecycle:            { label: "Lifecycle change",    className: "movement-badge-lifecycle" },
+
+  // Reserved for Future Work (supply-request deliveries).
+  supply:               { label: "Supply",              className: "movement-badge-supply" }
 };
 
 function sourceMeta(source) {

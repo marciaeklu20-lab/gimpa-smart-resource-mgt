@@ -35,6 +35,23 @@
  *       (resource.currentLocation + a resourceMovements audit row) via
  *       the shared writeMovement helper. No secrets. Definition lives in
  *       src/checkInResource.js.
+ *   - onFaultLogged / onFaultResolved / onResourceDocChanged /
+ *     onBookingTransitions  (Stage 4o Phase 3)
+ *       Event-driven movement listeners that reuse the same writeMovement
+ *       helper to keep resource.currentLocation in step with what happens
+ *       to the asset:
+ *         · onFaultLogged — a major/critical fault moves the asset to the
+ *           Maintenance Workshop.
+ *         · onFaultResolved — resolving the fault returns it home.
+ *         · onResourceDocChanged — one resources/{assetCode} update trigger:
+ *           lifecycleStatus → archive moves, and home-location changes (from
+ *           the client-side transferAsset service) → transfer moves. Single
+ *           infinite-loop guard.
+ *         · onBookingTransitions — scheduled (every 5 min): approved
+ *           bookings move the asset to their bookingLocation at start and
+ *           back home at end, advancing locationTransitionState atomically.
+ *       All four run under the Admin SDK; no secrets, no PII beyond system
+ *       role labels. Definitions live in src/movements/.
  *
  * Secrets:
  *   - RESEND_API_KEY — the Resend API key, stored as a Firebase
@@ -87,6 +104,13 @@ export {
 // shared writeMovement helper. Verifies the caller is approved server-
 // side. No new secrets.
 export { checkInResource } from "./src/checkInResource.js";
+
+// Stage 4o Phase 3 — event-driven movement listeners. Each reuses the
+// shared writeMovement helper with its own `source`; no secrets.
+export { onFaultLogged } from "./src/movements/onFaultLogged.js";
+export { onFaultResolved } from "./src/movements/onFaultResolved.js";
+export { onResourceDocChanged } from "./src/movements/onResourceDocChanged.js";
+export { onBookingTransitions } from "./src/movements/onBookingTransitions.js";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 

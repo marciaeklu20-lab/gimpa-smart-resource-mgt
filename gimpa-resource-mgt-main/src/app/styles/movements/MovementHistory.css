@@ -61,31 +61,45 @@
   background: #ede9fe;
 }
 
-/* Phase 3 sources — styled now so the audit log is consistent the moment
-   those listeners start writing. */
+/* Phase 3 event-listener sources. Colours follow the Phase 3 spec:
+   booking + maintenance-return = green, fault = orange, transfer = purple,
+   lifecycle = red. */
 .movement-badge-booking {
   color: #15803d;
   background: #dcfce7;
 }
 
+.movement-badge-maintenance-return {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.movement-badge-fault {
+  color: #c2410c;
+  background: #ffedd5;
+}
+
 .movement-badge-transfer {
-  color: #b45309;
-  background: #fef3c7;
+  color: #6d28d9;
+  background: #ede9fe;
 }
 
-.movement-badge-maintenance {
-  color: #be123c;
-  background: #ffe4e6;
+.movement-badge-lifecycle {
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
+/* Reserved for Future Work (supply-request deliveries). */
 .movement-badge-supply {
   color: #0e7490;
   background: #cffafe;
 }
 
-.movement-badge-lifecycle {
-  color: #4338ca;
-  background: #e0e7ff;
+/* Legacy Phase-2-era maintenance badge; superseded by the fault /
+   maintenance-return pair above but kept so older rows still render. */
+.movement-badge-maintenance {
+  color: #be123c;
+  background: #ffe4e6;
 }
 
 .movement-badge-unknown {

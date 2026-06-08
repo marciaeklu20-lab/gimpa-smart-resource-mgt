@@ -24,7 +24,14 @@ import {
   createBooking
 } from "./services/createBooking";
 
+// Stage 4o Phase 3 — the booking-location dropdown shares the same building
+// list as the QR check-in flow so destinations always resolve to a known
+// coordinate on the live map.
+import { BUILDING_COORDINATES } from "@/app/lib/gimpaBuildingCoordinates";
+
 import "@/app/styles/resource-management/booking-form.css";
+
+const BOOKING_BUILDINGS = Object.keys(BUILDING_COORDINATES);
 
 export default function BookingForm({
   resource,
@@ -42,6 +49,9 @@ export default function BookingForm({
     useState("");
 
   const [attendees, setAttendees] =
+    useState("");
+
+  const [bookingLocation, setBookingLocation] =
     useState("");
 
   const [startDate, setStartDate] =
@@ -118,6 +128,8 @@ export default function BookingForm({
         endDate:
           endDate.toISOString(),
 
+        bookingLocation,
+
         notes,
 
         attendees:
@@ -153,6 +165,10 @@ export default function BookingForm({
       } else if (error.message === "RESOURCE_NOT_FOUND") {
         alert(
           "This resource no longer exists."
+        );
+      } else if (error.message === "BOOKING_LOCATION_REQUIRED") {
+        alert(
+          "Please select where you'll use this resource."
         );
       } else {
         alert(
@@ -254,6 +270,39 @@ export default function BookingForm({
                 )
               }
             />
+
+          </div>
+
+          <div className="booking-field">
+
+            <label>
+              Where will you use this resource?
+            </label>
+
+            <select
+              required
+              className="booking-location-select"
+              value={bookingLocation}
+              onChange={(e) =>
+                setBookingLocation(
+                  e.target.value
+                )
+              }
+            >
+              <option value="" disabled>
+                Select a building…
+              </option>
+              {BOOKING_BUILDINGS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+
+            <small className="booking-location-help">
+              We&apos;ll show the resource here on the live map during your
+              booking window.
+            </small>
 
           </div>
 

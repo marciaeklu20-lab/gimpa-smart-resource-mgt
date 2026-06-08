@@ -115,6 +115,7 @@
 
 .booking-field input,
 .booking-field textarea,
+.booking-field select,
 .booking-datepicker {
   width: 100%;
 
@@ -140,8 +141,21 @@
   min-height: 120px;
 }
 
+/* Stage 4o Phase 3 — booking-location dropdown + help text. */
+.booking-location-select {
+  cursor: pointer;
+  appearance: none;
+}
+
+.booking-location-help {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
 .booking-field input:focus,
 .booking-field textarea:focus,
+.booking-field select:focus,
 .booking-datepicker:focus {
   outline: none;
 
