@@ -186,7 +186,8 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
     { name: "Chat", icon: <BsChatLeftDots size={20} /> },
 
-    // Maintenance visible only to super_admin + Maintenance Staff.
+    // Maintenance visible only to the maintenance domain (Maintenance
+    // Admin + Maintenance Staff). Stage 6: super_admin removed.
     ...(MAINTENANCE_ROLES.includes(role)
       ? [{ name: "Maintenance", icon: <FaTools size={20} /> }]
       : []),

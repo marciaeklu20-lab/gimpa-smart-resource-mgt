@@ -74,9 +74,12 @@ service cloud.firestore {
     // Stage 4e.5: Maintenance Admin joins the maintenance domain too,
     // so this list is the visibility/membership predicate. The narrower
     // tier predicate is isMaintenanceAdmin() below.
+    // Stage 6: super_admin removed here to mirror MAINTENANCE_ROLES in
+    // roles.js. This is alignment only — super_admin still satisfies
+    // every maintenance read/write rule via isAdmin() (DB-level override
+    // retained for incident recovery).
     function isMaintenanceStaff() {
       return myRole() in [
-        "super_admin",
         "Maintenance Admin",
         "Maintenance Staff"
       ];
@@ -84,10 +87,12 @@ service cloud.firestore {
 
     // Mirrors MAINTENANCE_ADMINS in src/app/lib/roles.js. The
     // department-head tier: assigns faults, overrides workflow gates,
-    // and oversees all maintenance activity. super_admin counts too.
+    // and oversees all maintenance activity.
+    // Stage 6: super_admin removed here (alignment with roles.js). It
+    // still passes via isAdmin() at every call site — DB-level override
+    // retained for incident recovery.
     function isMaintenanceAdmin() {
       return myRole() in [
-        "super_admin",
         "Maintenance Admin"
       ];
     }
@@ -851,6 +856,95 @@ service cloud.firestore {
         && request.resource.data.text.size() <= 1000;
 
       allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // conversations/{conversationId}  (Stage 5 — Chat)
+    //
+    // Type-discriminated: "channel" (role-gated group chat, pre-seeded by
+    // backfillChatChannels) or "dm" (1:1, created by the
+    // createOrFindDmConversation callable).
+    //
+    // Read:    channel — open channels (empty allowedRoles) are readable by
+    //          any approved user; role channels need the viewer's role in
+    //          allowedRoles. dm — the viewer must be a participant.
+    // Create/
+    // Update/
+    // Delete:  denied from clients. Both channel seeding and DM creation,
+    //          plus every message/summary write, go through the Cloud
+    //          Functions (Admin SDK), keeping the chat log forgery-proof.
+    // ---------------------------------------------------------------
+    match /conversations/{conversationId} {
+
+      // Read gate pivots on allowedRoles — the SAME field the channels
+      // list query constrains via array-contains-any — so Firestore can
+      // prove the whole snapshot is readable without per-doc inspection
+      // (the size()==0 / hasAny form failed for list queries). Open
+      // channels carry the "__all_approved__" sentinel (seeded on #general)
+      // instead of an empty array, since array-contains-any can't match [].
+      allow read: if isApproved() && (
+        (
+          resource.data.type == "channel" && (
+            myRole() in resource.data.allowedRoles
+            || "__all_approved__" in resource.data.allowedRoles
+          )
+        )
+        || (
+          resource.data.type == "dm"
+          && request.auth.uid in resource.data.participantIds
+        )
+      );
+
+      allow create, update, delete: if false;
+
+      // -------------------------------------------------------------
+      // conversations/{conversationId}/messages/{messageId}
+      //
+      // Same membership model as the parent conversation, re-checked via
+      // a get() (one extra read per evaluation — unavoidable for cross-doc
+      // auth, same shape the bookings/faults message rules use).
+      //
+      // Read:    parent-conversation membership.
+      // Create/
+      // Update/
+      // Delete:  denied — messages are written only by the sendMessage
+      //          Cloud Function (Admin SDK) and are immutable.
+      // -------------------------------------------------------------
+      match /messages/{messageId} {
+
+        function parentConvo() {
+          return get(/databases/$(database)/documents/conversations/$(conversationId)).data;
+        }
+
+        // Messages are read by document path (not a collection-group list
+        // that crosses conversations), so the get()-based parent lookup is
+        // rules-decidable. Membership mirrors the parent gate, using the
+        // same "__all_approved__" sentinel for open channels.
+        allow read: if isApproved() && (
+          (
+            parentConvo().type == "channel" && (
+              myRole() in parentConvo().allowedRoles
+              || "__all_approved__" in parentConvo().allowedRoles
+            )
+          )
+          || (
+            parentConvo().type == "dm"
+            && request.auth.uid in parentConvo().participantIds
+          )
+        );
+
+        allow create, update, delete: if false;
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // userChatState/{userId}  (Stage 5 — Chat)
+    //
+    // Per-user read state for unread indicators: { lastRead: { [convoId]:
+    // Timestamp } }. Each user reads + writes ONLY their own doc.
+    // ---------------------------------------------------------------
+    match /userChatState/{userId} {
+      allow read, write: if isApproved() && request.auth.uid == userId;
     }
   }
 }

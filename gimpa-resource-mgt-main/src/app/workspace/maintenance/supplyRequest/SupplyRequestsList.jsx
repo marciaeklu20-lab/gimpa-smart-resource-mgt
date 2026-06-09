@@ -21,7 +21,7 @@ import { subscribeSupplyRequests } from "../services/supplyRequest/subscribeSupp
 import SupplyRequestDetailPanel from "./SupplyRequestDetailPanel";
 
 import { relativeTime } from "@/app/lib/resourceMeta";
-import { MAINTENANCE_ROLES, PLATFORM_ADMINS } from "@/app/lib/roles";
+import { MAINTENANCE_ROLES } from "@/app/lib/roles";
 
 import "@/app/styles/workspace/supply-requests.css";
 
@@ -96,10 +96,13 @@ export default function SupplyRequestsList({ navigate }) {
     return () => clearInterval(t);
   }, []);
 
+  // Stage 6 (C2): only the maintenance domain can CREATE supply
+  // requests. Platform admins (incl. super_admin) retain READ via the
+  // list subscription (subscribeSupplyRequests keeps PLATFORM_ADMINS),
+  // but the create action is operationally separated from them.
   const canRequest = useMemo(() => {
     if (!currentUser) return false;
-    return MAINTENANCE_ROLES.includes(currentUser.role)
-      || PLATFORM_ADMINS.includes(currentUser.role);
+    return MAINTENANCE_ROLES.includes(currentUser.role);
   }, [currentUser?.role]);
 
   const visibleRequests = useMemo(() => {

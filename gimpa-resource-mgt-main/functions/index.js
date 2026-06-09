@@ -52,6 +52,14 @@
  *           back home at end, advancing locationTransitionState atomically.
  *       All four run under the Admin SDK; no secrets, no PII beyond system
  *       role labels. Definitions live in src/movements/.
+ *   - sendMessage / createOrFindDmConversation  (Stage 5)
+ *       Chat callables. sendMessage validates the caller is an approved
+ *       member of the target channel/DM and atomically appends the message
+ *       + stamps the conversation summary. createOrFindDmConversation
+ *       idempotently opens a 1:1 DM (stable sorted participantIdsKey),
+ *       denormalising participant names so the client never reads another
+ *       user's doc. Both Admin SDK; no secrets. Definitions live in
+ *       src/chat/.
  *
  * Secrets:
  *   - RESEND_API_KEY — the Resend API key, stored as a Firebase
@@ -111,6 +119,12 @@ export { onFaultLogged } from "./src/movements/onFaultLogged.js";
 export { onFaultResolved } from "./src/movements/onFaultResolved.js";
 export { onResourceDocChanged } from "./src/movements/onResourceDocChanged.js";
 export { onBookingTransitions } from "./src/movements/onBookingTransitions.js";
+
+// Stage 5 — Chat callables. sendMessage writes messages atomically;
+// createOrFindDmConversation idempotently opens a 1:1 DM. Both verify
+// approval + membership server-side. No secrets.
+export { sendMessage } from "./src/chat/sendMessage.js";
+export { createOrFindDmConversation } from "./src/chat/createOrFindDmConversation.js";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 

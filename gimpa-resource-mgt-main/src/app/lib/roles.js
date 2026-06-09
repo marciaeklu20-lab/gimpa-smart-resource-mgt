@@ -48,18 +48,24 @@ export const ALL_BOOKING_ADMINS = [
 
 // Maintenance department heads — assign faults, oversee all maintenance
 // activity, and can transition any fault's workflow without being the
-// assignee. super_admin is included here as a system-wide superuser.
-// Stage 4e.5+.
+// assignee. Stage 4e.5+.
+//
+// Stage 6: super_admin removed — operationally separated from the
+// maintenance domain at the UI level. It retains a DB-level override
+// via isAdmin() in firestore.rules (incident recovery), and fault
+// oversight reads via the explicit compensation in subscribeFaults.js.
 export const MAINTENANCE_ADMINS = [
-  "super_admin",
   "Maintenance Admin"
 ];
 
 // Roles that see every fault report. Stage 4c+ uses this; declared
 // here so the role list lives in one place. Stage 4e.5 adds
 // Maintenance Admin to the domain — they see all faults too.
+//
+// Stage 6: super_admin removed (operational separation). Its fault
+// oversight is preserved by an explicit "|| super_admin" compensation
+// in subscribeFaults.js, NOT by membership here.
 export const MAINTENANCE_ROLES = [
-  "super_admin",
   "Maintenance Admin",
   "Maintenance Staff"
 ];

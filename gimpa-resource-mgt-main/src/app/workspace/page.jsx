@@ -17,6 +17,7 @@ import Analytics from "@/app/workspace/analytics/Analytics";
 import Dashboard from "@/app/workspace/dashboard/Dashboard";
 import Maintenance from "@/app/workspace/maintenance/Maintenance";
 import SupplyRequestsList from "@/app/workspace/maintenance/supplyRequest/SupplyRequestsList";
+import ChatPanel from "@/app/workspace/chat/ChatPanel";
 import AiBotButton from "@/app/workspace/ai-bot/AiBotButton";
 
 import { PLATFORM_ADMINS } from "@/app/lib/roles";
@@ -66,16 +67,32 @@ export default function WorkspacePage() {
     // Stage 4f: faultId implies Maintenance → Faults, regardless of
     // what sidebar the caller passed. Lets condition-history entries
     // navigate without each call site having to spell out the route.
-    const effectiveSidebar = faultId ? "Maintenance" : sidebar;
-    const effectiveTab = faultId
-      ? "Faults"
-      : tab
-        ? tab
-        : sidebar === "Admin Dashboard"
-          ? "Approvals"
-          : sidebar === "Resource Management"
-            ? "Campus Resources"
-            : null;
+    //
+    // Stage 6 (C3): super_admin is operationally separated from the
+    // Maintenance module. A fault deep-link (e.g. from a Platform
+    // dashboard widget) must NOT route them into Maintenance — send
+    // them to the Admin Dashboard instead. Fault context is dropped
+    // (the Admin Dashboard has no fault-detail surface); losing context
+    // is preferable to leaking super_admin into Maintenance.
+    const isSuperAdmin = userRole === "super_admin";
+    const blockMaintenance = Boolean(faultId) && isSuperAdmin;
+
+    const effectiveSidebar = blockMaintenance
+      ? "Admin Dashboard"
+      : faultId
+        ? "Maintenance"
+        : sidebar;
+    const effectiveTab = blockMaintenance
+      ? "Approvals"
+      : faultId
+        ? "Faults"
+        : tab
+          ? tab
+          : sidebar === "Admin Dashboard"
+            ? "Approvals"
+            : sidebar === "Resource Management"
+              ? "Campus Resources"
+              : null;
 
     if (effectiveSidebar) setActiveSidebar(effectiveSidebar);
     if (effectiveTab) setActiveTab(effectiveTab);
@@ -88,7 +105,7 @@ export default function WorkspacePage() {
       expandedId: expandedId ?? null
     });
     setResourceView({ assetId: assetId ?? null });
-    setMaintenanceView({ faultId: faultId ?? null });
+    setMaintenanceView({ faultId: blockMaintenance ? null : (faultId ?? null) });
   };
 
   // Auto-clear bookingsView whenever the user navigates away from
@@ -128,7 +145,13 @@ export default function WorkspacePage() {
   const resourceTabs = STORES_TAB_ROLES.includes(userRole)
     ? ["Campus Resources", "Bookings", "Supply Requests"]
     : ["Campus Resources", "Bookings"];
-  const adminTabs = ["Approvals", "Users", "Email Reports"];
+  // Stage 6 (Addition 1): super_admin is operationally separated from the
+  // Email Reports trigger inside the Admin Dashboard. Other admin-level
+  // roles keep it (EmailReports authorizes all ADMIN_LEVEL_ROLES). The
+  // render branch below carries the same guard as a backstop.
+  const adminTabs = userRole === "super_admin"
+    ? ["Approvals", "Users"]
+    : ["Approvals", "Users", "Email Reports"];
 
   // Mirrors Sidebar.jsx — the sidebar already hides the Admin Dashboard
   // tab for non-admins; Analytics uses the same gate so a non-admin who
@@ -209,8 +232,12 @@ export default function WorkspacePage() {
           {/* MAINTENANCE — Stage 4c scaffold; sub-tabs owned by the
               Maintenance component itself, not the page's activeTab.
               Stage 4f: initialFaultId deep-links from AssetDetailPanel
-              "Resolved from fault: X" entries. */}
-          {activeSidebar === "Maintenance" && (
+              "Resolved from fault: X" entries.
+              Stage 6 (C3): super_admin is blocked from the Maintenance
+              module entirely. The sidebar entry is already hidden for
+              them; this guard is the backstop so a stale activeSidebar
+              state can never render Maintenance for super_admin. */}
+          {activeSidebar === "Maintenance" && userRole !== "super_admin" && (
             <Maintenance
               currentUser={currentUser}
               navigate={navigate}
@@ -218,8 +245,15 @@ export default function WorkspacePage() {
             />
           )}
 
+          {/* CHAT — Stage 5: general stakeholder messaging (channels + DMs).
+              Visible to all approved users; the Sidebar entry already
+              existed (AUDIT B9 dead tab) — this is its render branch. */}
+          {activeSidebar === "Chat" && (
+            <ChatPanel currentUser={currentUser} />
+          )}
+
           {/* RESOURCE MANAGEMENT TABS */}
-       
+
           {activeSidebar === "Resource Management" && (
             <div className="resource-management-tabs-container">
               {resourceTabs.map((tab) => (
@@ -288,10 +322,13 @@ export default function WorkspacePage() {
         )}
 
           {/* Stage 4l: Email Reports — on-demand trigger for the weekly
-              super-admin digest. The callable re-verifies super_admin
+              admin digest. The callable re-verifies ADMIN_LEVEL_ROLES
               server-side, so visibility here just mirrors the existing
-              Admin Dashboard gating. */}
-          {activeSidebar === "Admin Dashboard" && activeTab === "Email Reports" && (
+              Admin Dashboard gating.
+              Stage 6 (Addition 1): hidden from super_admin — operationally
+              separated from this surface (the tab is also dropped from
+              adminTabs above). */}
+          {activeSidebar === "Admin Dashboard" && activeTab === "Email Reports" && userRole !== "super_admin" && (
             <EmailReports />
           )}
 

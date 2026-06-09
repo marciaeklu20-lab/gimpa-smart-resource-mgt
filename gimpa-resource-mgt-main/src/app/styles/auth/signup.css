@@ -44,8 +44,8 @@ body, html {
   position: relative;
   z-index: 1;
   background-color: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
   border: 1px solid rgba(255, 255, 255, 0.25);
   padding: 40px;
   border-radius: 15px;
@@ -100,8 +100,8 @@ input {
   padding: 14px;
   margin: 10px 0;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background-color: rgba(173, 216, 230, 0.35);   /* light blue */
   color: #fff;
   font-size: 16px;
   outline: none;
@@ -109,9 +109,9 @@ input {
 }
 
 input:focus {
-  border-color: rgba(255, 255, 255, 0.7);
-  background-color: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(173, 216, 230, 0.55);   /* slightly more saturated on focus */
+  box-shadow: 0 0 10px rgba(173, 216, 230, 0.4);
 }
 
 input::placeholder {
@@ -131,7 +131,7 @@ input::placeholder {
   margin: 10px 0;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.4);
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(20, 30, 60, 0.75);   /* dark navy */
   color: #fff;
   font-size: 16px;
   outline: none;
@@ -156,8 +156,14 @@ input::placeholder {
 /* Focus effect like input fields */
 .select-wrapper select:focus {
   border-color: rgba(255, 255, 255, 0.7);
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(20, 30, 60, 0.9);
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Also style the dropdown OPTIONS so they're readable when expanded */
+.select-wrapper select option {
+  background-color: rgba(20, 30, 60, 0.95);
+  color: #fff;
 }
 
 
@@ -174,7 +180,7 @@ input::placeholder {
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
-  color: #1e2023;
+  color: #d8dee7;
   font-size: 18px;
 }
 
