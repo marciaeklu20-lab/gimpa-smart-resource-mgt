@@ -13,14 +13,14 @@ body, html {
 /* Full-page container with campus image */
 .login-container {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: url('/images/campus.jpg') no-repeat center center;
+  background: url('/images/campus.jpg') no-repeat center center fixed;
   background-size: cover;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Optional blur overlay */
@@ -42,8 +42,8 @@ body, html {
   position: relative;
   z-index: 1;
   background-color: rgba(255, 255, 255, 0.12); /* frosted glass */
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.25);
   padding: 40px;
   border-radius: 15px;
