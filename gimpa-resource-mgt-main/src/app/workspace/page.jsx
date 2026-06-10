@@ -18,6 +18,7 @@ import Dashboard from "@/app/workspace/dashboard/Dashboard";
 import Maintenance from "@/app/workspace/maintenance/Maintenance";
 import SupplyRequestsList from "@/app/workspace/maintenance/supplyRequest/SupplyRequestsList";
 import ChatPanel from "@/app/workspace/chat/ChatPanel";
+import Settings from "@/app/workspace/settings/Settings";
 import AiBotButton from "@/app/workspace/ai-bot/AiBotButton";
 
 import { PLATFORM_ADMINS } from "@/app/lib/roles";
@@ -161,6 +162,20 @@ export default function WorkspacePage() {
   const auth = getAuth(app);
   const firestore = getFirestore(app);
 
+  // Stage 7: re-fetch the cached user doc after an in-app edit (Profile
+  // modal saves fullName). Mirrors the onAuthStateChanged fetch shape so
+  // no new auth-data pattern is introduced.
+  const refreshCurrentUser = async () => {
+    const u = auth.currentUser;
+    if (!u) return;
+    const snap = await getDoc(doc(firestore, "users", u.uid));
+    if (snap.exists()) {
+      const data = snap.data();
+      setUserRole(data.role);
+      setCurrentUser({ uid: u.uid, ...data });
+    }
+  };
+
 
   // Check authentication + approval
 
@@ -204,7 +219,11 @@ export default function WorkspacePage() {
   return (
     <div>
 
-      <Header />
+      <Header
+        currentUser={currentUser}
+        onRefreshUser={refreshCurrentUser}
+        onOpenSettings={() => setActiveSidebar("Settings")}
+      />
 
       <div className="workspace-container">
 
@@ -343,6 +362,13 @@ export default function WorkspacePage() {
               (gated by Sidebar; EmailReports re-checks the role too). */}
           {activeSidebar === "Reports" && (
             <EmailReports currentUser={currentUser} />
+          )}
+
+          {/* Stage 7: Settings — sidebar-footer surface (also reachable
+              from the Header ProfileMenu). Saves notificationPrefs to
+              users/{uid}. */}
+          {activeSidebar === "Settings" && (
+            <Settings currentUser={currentUser} />
           )}
 
         </div>

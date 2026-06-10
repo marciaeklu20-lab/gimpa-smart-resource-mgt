@@ -116,8 +116,18 @@
 /* "Enable desktop notifications" prompt — only shown to admins before
    they've responded to the permission request. Sits at the bottom of
    the sidebar. */
-.sidebar-notif-btn {
+/* Stage 7: bottom-pinned footer holding the Settings entry + notif
+   prompt. The footer is the direct flex child of .sidebar-container that
+   carries the margin-top:auto pin (previously on the notif button, which
+   stopped working once it was nested inside this wrapper). */
+.sidebar-footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-notif-btn {
   display: flex;
   align-items: center;
   gap: 12px;

@@ -5,10 +5,20 @@ import React, { useContext } from "react";
 import Image from "next/image";
 import { LuContrast } from "react-icons/lu";
 import { ThemeContext } from "@/app/context/ThemeContext";
-import LogoutButton from "@/app/components/LogoutButton";
+import ProfileMenu from "@/app/components/ProfileMenu";
 import "@/app/styles/components/header.css";
 
-export default function Header({ title = "GIMPA RESOURCE MANAGEMENT", rightContent }) {
+// Stage 7: the bare <LogoutButton /> is replaced by <ProfileMenu />
+// (avatar dropdown with Profile / Settings / Sign Out). LogoutButton.jsx
+// is left in the repo but no longer mounted here. currentUser /
+// onRefreshUser / onOpenSettings are threaded through from page.jsx.
+export default function Header({
+  title = "GIMPA RESOURCE MANAGEMENT",
+  rightContent,
+  currentUser,
+  onRefreshUser,
+  onOpenSettings
+}) {
   const { theme, toggleTheme } = useContext(ThemeContext);
 
   return (
@@ -34,7 +44,11 @@ export default function Header({ title = "GIMPA RESOURCE MANAGEMENT", rightConte
         >
           <LuContrast size={24} />
         </button>
-        <LogoutButton />
+        <ProfileMenu
+          currentUser={currentUser}
+          onRefreshUser={onRefreshUser}
+          onOpenSettings={onOpenSettings}
+        />
         {rightContent && <div className="header-extra">{rightContent}</div>}
       </div>
     </header>

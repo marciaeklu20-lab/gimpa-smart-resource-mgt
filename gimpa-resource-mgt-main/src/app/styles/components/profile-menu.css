@@ -1,0 +1,122 @@
+/* Stage 7 — Header profile menu (avatar trigger + dropdown). */
+
+.profile-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.profile-menu-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-menu-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--header-accent, #003366);
+  color: var(--bg-color, #ffffff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border: 2px solid var(--header-accent, #003366);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.profile-menu-trigger:hover .profile-menu-avatar {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 51, 102, 0.25);
+}
+
+.profile-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(2, 18, 43, 0.18);
+  padding: 8px;
+  z-index: 1200;
+  animation: profile-menu-pop 0.12s ease-out;
+}
+
+@keyframes profile-menu-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.profile-menu-identity {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid #eef2f7;
+  margin-bottom: 6px;
+}
+
+.profile-menu-identity-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #003366;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-menu-identity-email {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.profile-menu-item:hover:not(:disabled) {
+  background-color: #f1f5f9;
+}
+
+.profile-menu-item:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.profile-menu-item-danger {
+  color: #b91c1c;
+}
+
+.profile-menu-item-danger:hover:not(:disabled) {
+  background-color: #fef2f2;
+}
+
+.profile-menu-divider {
+  height: 1px;
+  background: #eef2f7;
+  margin: 6px 4px;
+}

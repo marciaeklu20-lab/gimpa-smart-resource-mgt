@@ -1,0 +1,135 @@
+/* Stage 7 — Settings panel. */
+
+.settings-panel {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 4px 40px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.settings-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-color, #003366);
+}
+
+.settings-save-state {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-save-saving { color: #64748b; }
+.settings-save-saved  { color: #15803d; }
+.settings-save-error  { color: #b91c1c; }
+
+.settings-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-top: 18px;
+  box-shadow: 0 1px 3px rgba(2, 18, 43, 0.05);
+}
+
+.settings-section h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #003366;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.settings-row:last-child {
+  border-bottom: none;
+}
+
+.settings-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings-row-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.settings-row-desc {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.settings-toggle {
+  width: 20px;
+  height: 20px;
+  accent-color: #003366;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.settings-select {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.settings-select:focus {
+  outline: none;
+  border-color: #003366;
+  box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.12);
+}
+
+.settings-btn {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid #003366;
+  background: transparent;
+  color: #003366;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.settings-btn:hover:not(:disabled) {
+  background-color: #003366;
+  color: #ffffff;
+}
+
+.settings-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-reset-msg {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-reset-success { color: #15803d; }
+.settings-reset-error   { color: #b91c1c; }

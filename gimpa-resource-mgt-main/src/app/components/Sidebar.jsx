@@ -26,6 +26,7 @@ import { BsMenuButtonWide, BsMenuButtonWideFill, BsChatLeftDots } from "react-ic
 import { FaTools } from "react-icons/fa";
 import { GrResources } from "react-icons/gr";
 import { RiAdminLine } from "react-icons/ri";
+import { LuSettings } from "react-icons/lu";
 
 import "@/app/styles/components/sidebar.css";
 
@@ -254,23 +255,40 @@ export default function Sidebar({ collapsed, setCollapsed, activeTab, setActiveT
 
       </nav>
 
-      {showNotifPrompt && (
-        <button
-          type="button"
-          className="sidebar-notif-btn"
-          onClick={requestNotificationPermission}
-          title="Enable desktop notifications"
+      {/* Stage 7: bottom-pinned footer. Wraps the Settings entry and the
+          existing notif prompt so they share the bottom region — the
+          footer owns the margin-top:auto pin now (previously on the notif
+          button alone, which broke once it stopped being a direct flex
+          child of the container). */}
+      <div className="sidebar-footer">
+
+        <div
+          className={`sidebar-item ${activeTab === "Settings" ? "active" : ""}`}
+          onClick={() => setActiveTab("Settings")}
         >
-          <span className="sidebar-notif-btn-icon">
-            <MdNotificationsActive size={18} />
-          </span>
-          {!collapsed && (
-            <span className="sidebar-notif-btn-text">
-              Enable desktop notifications
+          <span className="sidebar-icon"><LuSettings size={20} /></span>
+          {!collapsed && <span className="sidebar-text">Settings</span>}
+        </div>
+
+        {showNotifPrompt && (
+          <button
+            type="button"
+            className="sidebar-notif-btn"
+            onClick={requestNotificationPermission}
+            title="Enable desktop notifications"
+          >
+            <span className="sidebar-notif-btn-icon">
+              <MdNotificationsActive size={18} />
             </span>
-          )}
-        </button>
-      )}
+            {!collapsed && (
+              <span className="sidebar-notif-btn-text">
+                Enable desktop notifications
+              </span>
+            )}
+          </button>
+        )}
+
+      </div>
 
     </aside>
   );
